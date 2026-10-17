@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plateforme consultante – prototype</title>
+<style>
+body{margin:0;background:#fafbfc}
+*{box-sizing:border-box}
+.app{font-family:'Avenir Next',Avenir,'Segoe UI',sans-serif;color:#142640;background:#fafbfc;min-height:100vh;font-size:14px;line-height:1.5}
+.serif{font-family:Georgia,'Times New Roman',serif;font-weight:400}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;background:#0d1c31;color:#fff}
+.mark{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #c5a45f;color:#e0c783;font:600 14px/1 Georgia,serif;letter-spacing:.04em}
+.layout{display:flex;flex-wrap:wrap;align-items:stretch;min-height:calc(100vh - 66px)}
+.side{flex:1 1 220px;max-width:100%;background:#142640;color:#fff;padding:20px 14px}
+.side-title{padding:0 14px 10px;font-size:12px;color:#8ea0b8;letter-spacing:.08em;text-transform:uppercase}
+.navbtn{display:block;width:100%;min-height:44px;text-align:left;padding:10px 14px;margin-bottom:4px;border:0;border-radius:8px;background:transparent;color:#c9d3e0;font:inherit;font-size:14px;cursor:pointer}
+.navbtn:hover{background:#1d3352;color:#fff}
+.navbtn.on{background:#253c5b;color:#fff;box-shadow:inset 3px 0 0 #c5a45f}
+.navbtn.add{border:1px dashed #3a5070;color:#e0c783;margin-top:6px}
+.navrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.main{flex:999 1 560px;min-width:0;padding:28px 32px 48px}
+.stack{display:flex;flex-direction:column;gap:20px}
+.card{background:#fff;border:1px solid #dce3eb;border-radius:10px;padding:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.kpi-v{font:400 30px/1.1 Georgia,serif;color:#142640;margin-top:6px}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5d6a7e}
+.muted{color:#526176}
+.small{font-size:12.5px}
+.h1{font:400 28px/1.2 Georgia,serif;margin:0 0 4px}
+.h2{font-size:16px;font-weight:700;margin:0 0 12px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#5d6a7e;padding:10px 12px;border-bottom:1px solid #dce3eb;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid #edf1f6;vertical-align:top}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-ok{background:#e1f0e6;color:#1d5533}
+.b-warn{background:#fbecd0;color:#6e4304}
+.b-bad{background:#f7dcd8;color:#85201a}
+.b-info{background:#e2e9f4;color:#22395a}
+.b-mute{background:#eceff3;color:#4a5668}
+.b-new{background:#c62828;color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:8px;border:1px solid #142640;background:#142640;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#8c6725;border-color:#8c6725}
+.btn.ghost{background:#fff;color:#142640;border-color:#c3ccd8}
+.btn.ghost:hover{border-color:#142640}
+.btn.sm{min-height:34px;padding:0 12px;font-size:12.5px}
+.pill{min-height:36px;padding:0 14px;border-radius:999px;border:1px solid #c3ccd8;background:#fff;color:#253c5b;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.pill.on{background:#142640;border-color:#142640;color:#fff}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid #dce3eb}
+.tab{min-height:44px;padding:0 16px;border:0;border-bottom:2px solid transparent;background:transparent;color:#526176;font:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:-1px}
+.tab.on{color:#142640;border-bottom-color:#c5a45f}
+.crumb{background:none;border:0;padding:0;color:#8c6725;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.alert{display:flex;flex-wrap:wrap;gap:10px 24px;padding:14px 18px;border-radius:10px;background:#fbf5e6;border:1px solid #ecd9a8;color:#5a3c06;font-size:13.5px}
+.prod{display:flex;flex-direction:column;gap:10px;text-align:left;font:inherit;color:inherit;cursor:pointer;background:#fff;border:1px solid #dce3eb;border-radius:10px;padding:18px}
+.prod:hover{border-color:#c5a45f}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start}
+.span2{grid-column:span 2;min-width:0}
+@media (max-width:900px){.span2{grid-column:auto}}
+.field{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:#3d4a5e}
+.field input,.field select,.inp{min-height:40px;padding:0 10px;border:1px solid #c3ccd8;border-radius:8px;font:inherit;font-size:14px;color:#142640;background:#fff}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.newcount{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#c62828;color:#fff;font-size:12px;font-weight:700}
+.law{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-bottom:1px solid #edf1f6}
+.law:last-child{border-bottom:0}
+.law-title{font-weight:700;font-size:15px;color:#142640}
+.law.isnew{background:#fdf1f0}
+.law.isnew .law-title{color:#b71c1c}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 6px 0 14px;border-radius:999px;background:#edf1f6;color:#142640;font-size:13px;font-weight:600}
+.chip button{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:#526176;font:inherit;font-size:15px;cursor:pointer}
+.chip button:hover{background:#dce3eb}
+.err{margin:10px 0 0;color:#b71c1c;font-size:13px}
+.fict{font-size:12px;color:#9fb0c6}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #c5a45f;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+<div style="display:flex;align-items:center;gap:12px">
+<span class="mark">CB</span>
+<div style="display:flex;flex-direction:column">
+<span class="serif" style="font-size:17px">Céline Bouriez · Plateforme</span>
+<span class="fict">Prototype · données fictives</span>
+</div>
+</div>
+<span style="font-size:13px;color:#c9d3e0">Espace consultante</span>
+</header>
+<div class="layout">
+<nav class="side" id="side" aria-label="Navigation principale"></nav>
+<main class="main" id="main"></main>
+</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Données fictives ----------
+  var COMPANIES = [
+    { id: 'c1', name: 'Alvéa Pharma', city: 'Lyon' },
+    { id: 'c2', name: 'Biolune Thérapeutiques', city: 'Paris' },
+    { id: 'c3', name: 'Nordica Santé', city: 'Lille' }
+  ];
+  var PRODUCTS = [
+    { id: 'p1', cid: 'c1', name: 'Alvérine 20 mg', dci: 'alvérimide', form: 'Comprimé pelliculé', area: 'Cardiologie', status: 'Dossier déposé', next: '14/11/2026', nextLabel: 'Réponse à la liste de questions ANSM', alerts: 2 },
+    { id: 'p2', cid: 'c1', name: 'ALV-204', dci: 'lunatrébib', form: 'Gélule', area: 'Oncologie', status: 'Essai de phase II', next: '30/01/2027', nextLabel: 'Analyse intermédiaire', alerts: 0 },
+    { id: 'p3', cid: 'c1', name: 'Dermalvia crème 1 %', dci: 'dermacizol', form: 'Crème', area: 'Dermatologie', status: 'Commercialisé', next: '12/03/2027', nextLabel: 'Dépôt du PSUR', alerts: 1 },
+    { id: 'p4', cid: 'c2', name: 'BLN-17', dci: 'neurolatide', form: 'Solution injectable', area: 'Neurologie', status: 'Essai de phase I', next: '05/12/2026', nextLabel: 'Rapport de tolérance', alerts: 0 },
+    { id: 'p5', cid: 'c2', name: 'Biolumab 100 mg', dci: 'biolumab', form: 'Solution pour perfusion', area: 'Immunologie', status: 'Autorisé', next: '02/11/2026', nextLabel: 'Engagement post-AMM', alerts: 1 },
+    { id: 'p6', cid: 'c3', name: 'Nordiflex 500 mg', dci: 'nordicétam', form: 'Comprimé', area: 'Rhumatologie', status: 'Commercialisé', next: '20/12/2026', nextLabel: 'Renouvellement certificat BPF', alerts: 0 },
+    { id: 'p7', cid: 'c3', name: 'NRD-09', dci: 'à définir', form: 'à définir', area: 'Pneumologie', status: 'Préclinique', next: '15/03/2027', nextLabel: 'Avis scientifique ANSM', alerts: 0 }
+  ];
+  var DETAIL = {
+    p1: {
+      docs: [
+        { type: 'Module 3 CTD – Qualité', auth: 'EMA', ver: 'v4 · 02/06/2026', exp: '—', status: 'Valide' },
+        { type: 'RCP (projet)', auth: 'ANSM', ver: 'v2 · 15/09/2026', exp: '—', status: 'En révision' },
+        { type: 'Certificat BPF – site de production', auth: 'ANSM', ver: 'v1 · 10/01/2024', exp: '10/01/2027', status: 'Expire bientôt' },
+        { type: 'Plan de gestion des risques', auth: 'EMA', ver: 'v1 · 20/05/2026', exp: '—', status: 'Valide' }
+      ],
+      ms: [
+        { id: 'm1', date: '12/05/2026', label: 'Dépôt du dossier d’AMM', owner: 'Alvéa Pharma', done: true },
+        { id: 'm2', date: '09/06/2026', label: 'Recevabilité du dossier', owner: 'ANSM', done: true },
+        { id: 'm3', date: '18/09/2026', label: 'Liste de questions reçue', owner: 'ANSM', done: true },
+        { id: 'm4', date: '14/11/2026', label: 'Réponse à la liste de questions', owner: 'Céline Bouriez', done: false, urgent: true },
+        { id: 'm5', date: '15/02/2027', label: 'Avis de la commission', owner: 'ANSM', done: false },
+        { id: 'm6', date: '30/04/2027', label: 'Décision d’AMM', owner: 'ANSM', done: false }
+      ],
+      trials: [
+        { phase: 'Phase III', reg: 'EU CT 2023-501234-17', endpoint: 'Baisse de la pression artérielle systolique à 12 semaines', n: '642 patients', state: 'Terminé', verdict: 'Critère atteint', result: 'Critère principal atteint : −9,8 mmHg contre placebo. Effets indésirables les plus fréquents : céphalées et vertiges.', source: 'registre CTIS', updated: '03/10/2026' }
+      ],
+      events: [
+        { date: '04/10/2026', term: 'Céphalées', grav: 'Non grave', cases: '12', source: 'Patient', lot: 'A2291', status: 'En analyse', action: '—' },
+        { date: '22/09/2026', term: 'Hypotension orthostatique', grav: 'Grave', cases: '3', source: 'Professionnel de santé', lot: 'A2291', status: 'Déclaré à l’autorité', action: 'Mise à jour du RCP (rubrique 4.8) prévue' },
+        { date: '11/09/2026', term: 'Vertiges', grav: 'Non grave', cases: '7', source: 'Essai', lot: '—', status: 'Clos', action: 'Ajouté au RCP' },
+        { date: '28/08/2026', term: 'Œdème des chevilles', grav: 'Non grave', cases: '4', source: 'Client', lot: 'A2250', status: 'Nouveau', action: '—' }
+      ],
+      suppliers: [
+        { name: 'Synthelis Chimie', country: 'Italie', role: 'Principe actif', audit: 'Audit valide' },
+        { name: 'Pharmapack Ouest', country: 'France', role: 'Conditionnement', audit: 'Audit à planifier' }
+      ],
+      buyers: [
+        { name: 'Centrale Rhône Répartition', country: 'France', role: 'Grossiste', contract: '01/2027 – 12/2029' },
+        { name: 'Hospidis Benelux', country: 'Belgique', role: 'Distributeur hospitalier', contract: 'en négociation' }
+      ]
+    }
+  };
+  var GENERIC = {
+    docs: [
+      { type: 'Brochure investigateur', auth: 'ANSM', ver: 'v2 · 01/07/2026', exp: '—', status: 'Valide' },
+      { type: 'Certificat BPF', auth: 'ANSM', ver: 'v1 · 15/03/2025', exp: '15/03/2028', status: 'Valide' }
+    ],
+    ms: [
+      { id: 'g1', date: '01/09/2026', label: 'Revue du dossier', owner: 'Céline Bouriez', done: true },
+      { id: 'g2', date: 'voir fiche', label: 'Prochaine échéance', owner: 'Entreprise', done: false }
+    ],
+    trials: [
+      { phase: 'Essai en cours', reg: 'NCT à renseigner', endpoint: 'Critère principal à renseigner', n: 'Recrutement en cours', state: 'En cours', verdict: 'En cours', result: 'Aucun résultat publié pour l’instant. Les résultats s’afficheront ici dès leur publication au registre.', source: 'registre ClinicalTrials.gov', updated: '15/10/2026' }
+    ],
+    events: [
+      { date: '30/09/2026', term: 'Nausées', grav: 'Non grave', cases: '2', source: 'Patient', lot: 'B1104', status: 'Clos', action: 'Aucune' }
+    ],
+    suppliers: [{ name: 'Fournisseur à renseigner', country: '—', role: 'Principe actif', audit: 'À planifier' }],
+    buyers: [{ name: 'Acheteur à renseigner', country: '—', role: '—', contract: '—' }]
+  };
+  var CONTACTS = [
+    { id: 'k1', name: 'Claire Morand', role: 'Resp. affaires réglementaires', company: 'Alvéa Pharma', status: 'Client', last: '15/10/2026 · point AMM', next: '14/11/2026' },
+    { id: 'k2', name: 'Julien Arnaud', role: 'Directeur médical', company: 'Biolune Thérapeutiques', status: 'Client', last: '09/10/2026 · appel', next: '02/11/2026' },
+    { id: 'k3', name: 'Sophie Lemaire', role: 'Pharmacien responsable', company: 'Nordica Santé', status: 'Client', last: '01/10/2026 · e-mail', next: '—' },
+    { id: 'k4', name: 'Marc Duval', role: 'VP Clinical', company: 'Hexalis', status: 'Rendez-vous', last: '13/10/2026 · LinkedIn', next: '24/10/2026' },
+    { id: 'k5', name: 'Thomas Girard', role: 'CEO', company: 'Kerys Bio', status: 'Démarché', last: '08/10/2026 · e-mail', next: '22/10/2026' },
+    { id: 'k6', name: 'Nadia Belkacem', role: 'Head of Regulatory', company: 'Oriven Labs', status: 'Non démarché', last: '—', next: '—' }
+  ];
+  var INVOICES = [
+    { num: 'FAC-2026-042', date: '14/10/2026', cid: 'c2', ht: 4500, status: 'En attente' },
+    { num: 'FAC-2026-041', date: '03/10/2026', cid: 'c1', ht: 6000, status: 'Payée' },
+    { num: 'FAC-2026-040', date: '01/10/2026', cid: 'c3', ht: 3800, status: 'Payée' },
+    { num: 'FAC-2026-036', date: '05/09/2026', cid: 'c1', ht: 6000, status: 'Payée' },
+    { num: 'FAC-2026-033', date: '28/08/2026', cid: 'c2', ht: 5200, status: 'Payée' },
+    { num: 'FAC-2026-029', date: '03/07/2026', cid: 'c3', ht: 3800, status: 'Payée' }
+  ];
+  var TOPICS = ['Autorisation de mise sur le marché', 'Essais cliniques', 'Pharmacovigilance', 'Pénuries et ruptures', 'Prix et remboursement', 'Étiquetage et notice', 'Publicité'];
+  var SOURCES = ['Légifrance (JORF)', 'EUR-Lex', 'ANSM', 'EMA'];
+  var LAWS = [
+    { id: 'l1', date: '17/10/2026', source: 'Légifrance (JORF)', topic: 'Pénuries et ruptures', impact: 'élevé', fresh: true, title: 'Arrêté du 15 octobre 2026 modifiant les délais de déclaration des risques de rupture de stock', summary: 'Le délai de déclaration passe de 6 à 9 mois avant la rupture prévue ; à intégrer au plan de gestion des pénuries.' },
+    { id: 'l2', date: '16/10/2026', source: 'EUR-Lex', topic: 'Pharmacovigilance', impact: 'moyen', fresh: true, title: 'Règlement d’exécution fixant un nouveau format pour les rapports périodiques de sécurité (PSUR)', summary: 'Nouveau gabarit obligatoire pour les PSUR déposés à partir de juillet 2027.' },
+    { id: 'l3', date: '14/10/2026', source: 'ANSM', topic: 'Autorisation de mise sur le marché', impact: 'élevé', fresh: true, title: 'Décision fixant les règles de présentation des dossiers d’AMM en procédure nationale', summary: 'Modifie la structure attendue du module 1 ; concerne les dossiers en cours d’instruction.' },
+    { id: 'l4', date: '09/10/2026', source: 'Légifrance (JORF)', topic: 'Prix et remboursement', impact: 'moyen', fresh: false, title: 'Avis relatif aux baisses de prix de médicaments remboursables de la classe cardiovasculaire', summary: 'Baisses de prix programmées au 1er janvier 2027 pour plusieurs classes thérapeutiques.' },
+    { id: 'l5', date: '02/10/2026', source: 'EMA', topic: 'Essais cliniques', impact: 'faible', fresh: false, title: 'Lignes directrices sur les essais cliniques décentralisés', summary: 'Recommandations sur les visites à distance et l’envoi des traitements à domicile.' },
+    { id: 'l6', date: '25/09/2026', source: 'Légifrance (JORF)', topic: 'Étiquetage et notice', impact: 'moyen', fresh: false, title: 'Arrêté relatif aux mentions obligatoires sur le conditionnement extérieur', summary: 'Ajout d’un pictogramme pour certaines classes ; délai de mise en conformité de 18 mois.' },
+    { id: 'l7', date: '18/09/2026', source: 'EUR-Lex', topic: 'Essais cliniques', impact: 'moyen', fresh: false, title: 'Directive modifiant les règles de transparence des résultats d’essais', summary: 'Publication des résumés de résultats raccourcie à 6 mois après la fin de l’essai.' },
+    { id: 'l8', date: '10/09/2026', source: 'ANSM', topic: 'Publicité', impact: 'faible', fresh: false, title: 'Recommandations sur la publicité auprès des professionnels de santé', summary: 'Précise les règles applicables aux supports numériques.' }
+  ];
+  var WATCH = {
+    c1: { sector: 'Médicaments cardiovasculaires sur prescription', topics: ['Autorisation de mise sur le marché', 'Pharmacovigilance', 'Pénuries et ruptures', 'Prix et remboursement'], keywords: ['PSUR', 'rupture de stock'], sources: SOURCES.slice(), lastRun: '17/10/2026 à 7 h 00' },
+    c2: { sector: 'Biothérapies en immunologie et neurologie', topics: ['Essais cliniques', 'Pharmacovigilance'], keywords: [], sources: ['EUR-Lex', 'EMA', 'ANSM'], lastRun: '17/10/2026 à 7 h 00' },
+    c3: { sector: 'Rhumatologie, médicaments matures', topics: ['Étiquetage et notice', 'Prix et remboursement'], keywords: [], sources: ['Légifrance (JORF)', 'ANSM'], lastRun: '17/10/2026 à 7 h 00' }
+  };
+  var DEADLINES = [
+    { date: '02/11/2026', product: 'Biolumab 100 mg', pid: 'p5', company: 'Biolune Thérapeutiques', label: 'Engagement post-AMM', left: 'dans 16 j', cls: 'b-bad' },
+    { date: '14/11/2026', product: 'Alvérine 20 mg', pid: 'p1', company: 'Alvéa Pharma', label: 'Réponse à la liste de questions ANSM', left: 'dans 28 j', cls: 'b-warn' },
+    { date: '05/12/2026', product: 'BLN-17', pid: 'p4', company: 'Biolune Thérapeutiques', label: 'Rapport de tolérance', left: 'dans 49 j', cls: 'b-mute' },
+    { date: '20/12/2026', product: 'Nordiflex 500 mg', pid: 'p6', company: 'Nordica Santé', label: 'Renouvellement certificat BPF', left: 'dans 64 j', cls: 'b-mute' }
+  ];
+  var STEPS = ['Non démarché', 'Démarché', 'Relancé', 'Rendez-vous', 'Client'];
+  var TODAY = '17/10/2026';
+
+  // ---------- État ----------
+  var S = {
+    view: 'dash', companyId: 'c1', productId: 'p1', tab: 'docs', sub: 'prod',
+    prodFilter: 'Tous', crmFilter: 'Tous', serious: false,
+    companies: COMPANIES.slice(), products: PRODUCTS.slice(), contacts: CONTACTS.slice(), invoices: INVOICES.slice(),
+    watch: JSON.parse(JSON.stringify(WATCH)), read: {}, done: {}, added: [],
+    newTerm: '', newGrav: 'Non grave', newSource: 'Client', newKeyword: '',
+    form: { name: '', city: '', siren: '', sector: '', contact: '', email: '' }, formError: false,
+    invForm: { cid: 'c1', num: '', ht: '', status: 'Payée' }, invError: false
+  };
+  function set(patch) { for (var k in patch) S[k] = patch[k]; render(); }
+
+  // ---------- Outils ----------
+  var H = [];
+  function on(fn) { H.push(fn); return H.length - 1; }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function eur(n) { return Math.round(n).toLocaleString('fr-FR') + ' €'; }
+  function dkey(d) { var p = d.split('/'); return p.length === 3 ? Number(p[2] + p[1] + p[0]) : 99999999; }
+  function tone(s) {
+    if (['Valide', 'Fait', 'Payée', 'Client', 'Autorisé', 'Commercialisé', 'Clos', 'Critère atteint', 'Audit valide', 'Terminé'].indexOf(s) >= 0) return 'badge b-ok';
+    if (['Expire bientôt', 'En révision', 'En attente', 'Dossier déposé', 'À faire', 'Relancé', 'En analyse', 'Rendez-vous', 'Audit à planifier', 'À planifier'].indexOf(s) >= 0) return 'badge b-warn';
+    if (['Expiré', 'Grave', 'Fatal'].indexOf(s) >= 0) return 'badge b-bad';
+    if (['Non démarché', 'Préclinique', 'Non grave', 'Pas intéressé', 'À venir'].indexOf(s) >= 0) return 'badge b-mute';
+    return 'badge b-info';
+  }
+  function badge(s) { return '<span class="' + tone(s) + '">' + esc(s) + '</span>'; }
+  function companyOf(id) { return S.companies.filter(function (c) { return c.id === id; })[0] || S.companies[0]; }
+  function productsOf(cid) { return S.products.filter(function (p) { return p.cid === cid; }); }
+  function sumBy(cid, status) { return S.invoices.filter(function (i) { return i.cid === cid && i.status === status; }).reduce(function (a, i) { return a + i.ht; }, 0); }
+  function watchOf(cid) { return S.watch[cid] || { sector: '', topics: [], keywords: [], sources: SOURCES.slice(), lastRun: 'pas encore lancée' }; }
+  function matchLaws(cid) {
+    var w = watchOf(cid);
+    var kws = w.keywords.map(function (k) { return k.toLowerCase(); });
+    return LAWS.filter(function (l) {
+      var txt = (l.title + ' ' + l.summary).toLowerCase();
+      return w.sources.indexOf(l.source) >= 0 && (w.topics.indexOf(l.topic) >= 0 || kws.some(function (k) { return txt.indexOf(k) >= 0; }));
+    });
+  }
+  function isNewLaw(cid, l) { return l.fresh && !S.read[cid + l.id]; }
+  function newCountOf(cid) { return matchLaws(cid).filter(function (l) { return isNewLaw(cid, l); }).length; }
+  function toggleIn(arr, v) { return arr.indexOf(v) >= 0 ? arr.filter(function (x) { return x !== v; }) : arr.concat([v]); }
+  function updateWatch(patch) {
+    var w = watchOf(S.companyId), nw = {};
+    for (var k in w) nw[k] = w[k];
+    for (var j in patch) nw[j] = patch[j];
+    var all = {}; for (var c in S.watch) all[c] = S.watch[c];
+    all[S.companyId] = nw;
+    set({ watch: all });
+  }
+  function openCompany(cid) { return on(function () { set({ view: 'company', companyId: cid, prodFilter: 'Tous', sub: 'prod' }); }); }
+  function openProduct(p) { return on(function () { set({ view: 'product', productId: p.id, companyId: p.cid, tab: 'docs', serious: false }); }); }
+
+  // ---------- Menu latéral ----------
+  function renderSide() {
+    var h = '<div class="side-title">Mes entreprises</div>';
+    S.companies.forEach(function (c) {
+      var n = newCountOf(c.id);
+      var active = (S.view === 'company' || S.view === 'product') && S.companyId === c.id;
+      h += '<button class="navbtn' + (active ? ' on' : '') + '" data-click="' + openCompany(c.id) + '"><span class="navrow"><span>' + esc(c.name) + '</span>' +
+        (n ? '<span class="newcount" aria-label="' + n + ' nouveaux textes">' + n + '</span>' : '') + '</span></button>';
+    });
+    h += '<button class="navbtn add" data-click="' + on(function () { set({ view: 'add', formError: false }); }) + '">+ Ajouter une entreprise</button>';
+    h += '<div style="height:1px;background:#2c4364;margin:14px 14px 18px"></div><div class="side-title" style="padding-bottom:14px">Mon activité</div>';
+    [['dash', 'Tableau de bord'], ['clients', 'Clients'], ['crm', 'Contacts'], ['fees', 'Honoraires']].forEach(function (n) {
+      h += '<button class="navbtn' + (S.view === n[0] ? ' on' : '') + '" data-click="' + on(function () { set({ view: n[0] }); }) + '">' + n[1] + '</button>';
+    });
+    h += '<div style="margin:24px 14px 0;padding-top:16px;border-top:1px solid #2c4364;font-size:12.5px;color:#8ea0b8">Connectée : Céline Bouriez</div>';
+    return h;
+  }
+
+  // ---------- Vues ----------
+  function viewDash() {
+    var paid = S.invoices.filter(function (i) { return i.status === 'Payée'; });
+    var month = paid.filter(function (i) { return i.date.slice(3, 5) === '10'; }).reduce(function (a, i) { return a + i.ht; }, 0);
+    var year = paid.reduce(function (a, i) { return a + i.ht; }, 0);
+    var pending = S.invoices.filter(function (i) { return i.status === 'En attente'; }).reduce(function (a, i) { return a + i.ht; }, 0);
+    var totalNew = S.companies.reduce(function (a, c) { return a + newCountOf(c.id); }, 0);
+    var rows = DEADLINES.map(function (d) {
+      var p = S.products.filter(function (x) { return x.id === d.pid; })[0];
+      return '<tr><td style="white-space:nowrap">' + d.date + '</td><td><button class="crumb" data-click="' + openProduct(p) + '">' + esc(d.product) + '</button></td><td>' + esc(d.company) + '</td><td>' + esc(d.label) + '</td><td><span class="badge ' + d.cls + '">' + d.left + '</span></td></tr>';
+    }).join('');
+    var c1New = newCountOf('c1');
+    return '<div class="stack" style="gap:24px">' +
+      '<div><h1 class="h1">Bonjour Céline</h1><p class="muted" style="margin:0">Samedi 17 octobre 2026 · ' + S.companies.length + ' entreprises clientes suivies</p></div>' +
+      '<div class="kpis">' +
+      '<div class="card"><div class="lbl">Encaissé en octobre</div><div class="kpi-v">' + eur(month) + '</div><div class="muted small">factures payées</div></div>' +
+      '<div class="card"><div class="lbl">Encaissé en 2026</div><div class="kpi-v">' + eur(year) + '</div><div class="muted small">' + eur(pending) + ' en attente</div></div>' +
+      '<div class="card"><div class="lbl">Échéances à 30 jours</div><div class="kpi-v">2</div><div class="muted small">toutes entreprises</div></div>' +
+      '<div class="card"><div class="lbl">Nouveaux textes de loi</div><div class="kpi-v" style="color:#b71c1c">' + totalNew + '</div><div class="muted small">à lire, toutes entreprises</div></div>' +
+      '</div>' +
+      '<div class="grid3">' +
+      '<section class="card span2"><h2 class="h2">Prochaines échéances clients</h2><div class="scroll"><table><thead><tr><th>Date</th><th>Produit</th><th>Entreprise</th><th>Jalon</th><th>Délai</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
+      '<section class="card"><h2 class="h2">À traiter</h2><div class="stack" style="gap:14px">' +
+      '<div style="display:flex;gap:10px;align-items:flex-start"><span class="badge b-bad">Grave</span><span>Hypotension orthostatique signalée sur Alvérine 20 mg (3 cas)</span></div>' +
+      '<div style="display:flex;gap:10px;align-items:flex-start"><span class="badge b-warn">Document</span><span>Certificat BPF d’Alvéa Pharma : expire le 10/01/2027</span></div>' +
+      (c1New ? '<div style="display:flex;gap:10px;align-items:flex-start"><span class="badge b-new">Loi</span><span>' + c1New + ' nouveau' + (c1New > 1 ? 'x textes' : ' texte') + ' pour Alvéa Pharma</span></div>' : '') +
+      '</div></section></div></div>';
+  }
+
+  function viewClients() {
+    var rows = S.companies.map(function (c) {
+      var ps = productsOf(c.id).slice().sort(function (a, b) { return dkey(a.next) - dkey(b.next); });
+      var next = ps[0] ? ps[0].next + ' · ' + ps[0].name : '—';
+      return '<tr><td style="font-weight:600">' + esc(c.name) + '</td><td>' + esc(c.city) + '</td><td>' + ps.length + '</td><td>' + esc(next) + '</td><td>' + eur(sumBy(c.id, 'Payée')) + '</td><td>' + eur(sumBy(c.id, 'En attente')) + '</td>' +
+        '<td style="text-align:right"><button class="btn sm" data-click="' + openCompany(c.id) + '">Ouvrir l’espace</button></td></tr>';
+    }).join('');
+    return '<div class="stack"><div><h1 class="h1">Entreprises clientes</h1><p class="muted" style="margin:0">Vue d’ensemble de toutes vos entreprises.</p></div>' +
+      '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Entreprise</th><th>Ville</th><th>Produits</th><th>Prochaine échéance</th><th>Encaissé</th><th>En attente</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+
+  function viewCompany() {
+    var c = companyOf(S.companyId);
+    var nNew = newCountOf(c.id);
+    var h = '<div class="stack">' +
+      '<div style="font-size:13px"><button class="crumb" data-click="' + on(function () { set({ view: 'clients' }); }) + '">Clients</button> <span class="muted">› ' + esc(c.name) + '</span></div>' +
+      '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end"><div><div class="lbl">Espace entreprise</div><h1 class="h1">' + esc(c.name) + '</h1>' +
+      '<p class="muted" style="margin:0">' + productsOf(c.id).length + ' produits · ' + esc(c.city) + '</p></div><button class="btn ghost">+ Ajouter un produit</button></div>' +
+      '<div class="tabs" role="tablist" aria-label="Rubriques de l’entreprise">' +
+      '<button role="tab" class="tab' + (S.sub === 'prod' ? ' on' : '') + '" data-click="' + on(function () { set({ sub: 'prod' }); }) + '">Médicaments</button>' +
+      '<button role="tab" class="tab' + (S.sub === 'watch' ? ' on' : '') + '" data-click="' + on(function () { set({ sub: 'watch' }); }) + '"><span style="display:inline-flex;align-items:center;gap:8px">Veille réglementaire' + (nNew ? '<span class="newcount">' + nNew + '</span>' : '') + '</span></button>' +
+      '</div>';
+    h += S.sub === 'watch' ? watchPanel(c) : productsPanel(c);
+    return h + '</div>';
+  }
+
+  function productsPanel(c) {
+    var groupOf = function (s) { return (s.indexOf('Essai') === 0 || s === 'Préclinique') ? 'En essai' : (s === 'Dossier déposé' ? 'En validation' : 'Sur le marché'); };
+    var all = productsOf(c.id);
+    if (!all.length) return '<div class="card muted">Aucun médicament pour l’instant. Ajoutez-en un avec « + Ajouter un produit ».</div>';
+    var alerts = c.id === 'c1' ? ['Alvérine 20 mg : réponse à l’ANSM due le 14/11/2026 (J-28)', 'Certificat BPF : expire le 10/01/2027', 'Effet indésirable grave signalé le 22/09/2026']
+      : c.id === 'c2' ? ['Biolumab 100 mg : engagement post-AMM dû le 02/11/2026 (J-16)'] : [];
+    var h = alerts.length ? '<div class="alert" role="status"><strong>Alertes</strong>' + alerts.map(function (a) { return '<span>' + esc(a) + '</span>'; }).join('') + '</div>' : '';
+    h += '<div class="pills">' + ['Tous', 'En essai', 'En validation', 'Sur le marché'].map(function (g) {
+      return '<button class="pill' + (S.prodFilter === g ? ' on' : '') + '" data-click="' + on(function () { set({ prodFilter: g }); }) + '">' + g + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="grid3">' + all.filter(function (p) { return S.prodFilter === 'Tous' || groupOf(p.status) === S.prodFilter; }).map(function (p) {
+      return '<button class="prod" data-click="' + openProduct(p) + '">' + badge(p.status) +
+        '<span class="serif" style="font-size:20px">' + esc(p.name) + '</span>' +
+        '<span class="muted" style="font-size:13px">' + esc(p.dci) + ' · ' + esc(p.form) + ' · ' + esc(p.area) + '</span>' +
+        '<span style="font-size:13px;padding-top:8px;border-top:1px solid #edf1f6"><strong>' + esc(p.next) + '</strong> · ' + esc(p.nextLabel) + '</span>' +
+        (p.alerts ? '<span style="font-size:12.5px;color:#85201a">' + p.alerts + (p.alerts > 1 ? ' alertes ouvertes' : ' alerte ouverte') + '</span>' : '') +
+        '</button>';
+    }).join('') + '</div>';
+    return h;
+  }
+
+  function watchPanel(c) {
+    var w = watchOf(c.id);
+    var laws = matchLaws(c.id);
+    var nNew = laws.filter(function (l) { return isNewLaw(c.id, l); }).length;
+    var nothing = !w.topics.length && !w.keywords.length;
+    var status = nothing ? 'Choisissez au moins un sujet ou un mot-clé' : (nNew === 0 ? 'Aucun nouveau texte' : nNew + (nNew > 1 ? ' nouveaux textes à lire' : ' nouveau texte à lire'));
+    var impactCls = { 'élevé': 'badge b-warn', 'moyen': 'badge b-info', 'faible': 'badge b-mute' };
+    var left = '<section class="card stack" style="gap:18px;min-width:0">' +
+      '<div><h2 class="h2" style="margin-bottom:4px">Ce qui m’intéresse pour ' + esc(c.name) + '</h2><p class="muted" style="margin:0;font-size:13px">L’analyse lit chaque jour les nouveaux textes et ne garde que ceux qui correspondent.</p></div>' +
+      '<label class="field">Secteur précis<input type="text" value="' + esc(w.sector) + '" data-change="' + on(function (e) { var nw = {}; for (var k in w) nw[k] = w[k]; nw.sector = e.target.value; S.watch[c.id] = nw; }) + '" placeholder="ex. Médicaments cardiovasculaires sur prescription"></label>' +
+      '<div class="field" role="group" aria-label="Sujets suivis">Sujets suivis<div class="pills" style="margin-top:4px">' + TOPICS.map(function (t) {
+        var onT = w.topics.indexOf(t) >= 0;
+        return '<button class="pill' + (onT ? ' on' : '') + '" aria-pressed="' + onT + '" data-click="' + on(function () { updateWatch({ topics: toggleIn(w.topics, t) }); }) + '">' + esc(t) + '</button>';
+      }).join('') + '</div></div>' +
+      '<div class="field">Lois ou mots-clés précis<div class="pills" style="margin-top:4px">' + w.keywords.map(function (k) {
+        return '<span class="chip">' + esc(k) + '<button aria-label="Retirer ' + esc(k) + '" data-click="' + on(function () { updateWatch({ keywords: w.keywords.filter(function (x) { return x !== k; }) }); }) + '">×</button></span>';
+      }).join('') + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:6px"><input class="inp" type="text" aria-label="Nouveau mot-clé" id="kw" value="' + esc(S.newKeyword) + '" data-change="' + on(function (e) { S.newKeyword = e.target.value; }) + '" placeholder="ex. sérialisation, PSUR" style="flex:1 1 auto;min-width:0">' +
+      '<button class="btn sm" data-click="' + on(function () {
+        var input = document.getElementById('kw'); var k = (input ? input.value : S.newKeyword).trim();
+        if (!k || w.keywords.indexOf(k) >= 0) return;
+        S.newKeyword = ''; updateWatch({ keywords: w.keywords.concat([k]) });
+      }) + '">Ajouter</button></div></div>' +
+      '<div class="field" role="group" aria-label="Sources surveillées">Sources surveillées<div class="pills" style="margin-top:4px">' + SOURCES.map(function (s) {
+        var onS = w.sources.indexOf(s) >= 0;
+        return '<button class="pill' + (onS ? ' on' : '') + '" aria-pressed="' + onS + '" data-click="' + on(function () { updateWatch({ sources: toggleIn(w.sources, s) }); }) + '">' + esc(s) + '</button>';
+      }).join('') + '</div></div></section>';
+    var list = laws.length ? laws.map(function (l) {
+      var isNew = isNewLaw(c.id, l);
+      return '<article class="law' + (isNew ? ' isnew' : '') + '">' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px">' + (isNew ? '<span class="badge b-new">Nouveau</span>' : '') +
+        '<span class="muted">' + l.date + ' · ' + esc(l.source) + '</span><span class="' + impactCls[l.impact] + '">Impact ' + l.impact + '</span><span class="badge b-info">' + esc(l.topic) + '</span></div>' +
+        '<div class="law-title">' + esc(l.title) + '</div><div style="font-size:13.5px">' + esc(l.summary) + '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn ghost sm">Lire le texte</button>' +
+        (isNew ? '<button class="btn ghost sm" data-click="' + on(function () { var r = {}; for (var k in S.read) r[k] = S.read[k]; r[c.id + l.id] = true; set({ read: r }); }) + '">Marquer comme lu</button>' : '') +
+        '</div></article>';
+    }).join('') : '<div class="muted" style="padding:18px">' + (nothing ? 'Renseignez le secteur et les sujets suivis : les textes correspondants apparaîtront ici.' : 'Aucun texte ne correspond pour l’instant. La prochaine analyse tourne demain à 7 h.') + '</div>';
+    var right = '<div class="stack span2" style="gap:16px">' +
+      '<section class="card" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;align-items:center"><div><div class="lbl">Analyse automatique · chaque matin à 7 h</div><div style="margin-top:4px"><strong>' + status + '</strong></div><div class="muted" style="font-size:13px">Dernière analyse : ' + esc(w.lastRun) + '</div></div>' +
+      '<button class="btn" data-click="' + on(function () { var d = new Date(); updateWatch({ lastRun: TODAY + ' à ' + d.getHours() + ' h ' + String(d.getMinutes()).padStart(2, '0') }); }) + '">Lancer l’analyse maintenant</button></section>' +
+      '<section class="card" style="padding:0;min-width:0"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid #dce3eb;align-items:center"><h2 class="h2" style="margin:0">Textes détectés</h2><span style="font-size:13px"><span class="badge b-new">Nouveau</span> <span class="muted">= publié depuis votre dernière lecture</span></span></div>' + list + '</section></div>';
+    return '<div class="grid3">' + left + right + '</div>';
+  }
+
+  function viewProduct() {
+    var c = companyOf(S.companyId);
+    var p = S.products.filter(function (x) { return x.id === S.productId; })[0];
+    var D = DETAIL[p.id] || GENERIC;
+    var hasTrials = p.id === 'p1' || p.status.indexOf('Essai') === 0;
+    var tabs = [['docs', 'Documents réglementaires'], ['ms', 'Échéances']].concat(hasTrials ? [['trials', 'Essais cliniques']] : []).concat([['events', 'Effets indésirables'], ['partners', 'Fournisseurs et acheteurs']]);
+    var cur = (S.tab === 'trials' && !hasTrials) ? 'docs' : S.tab;
+    var h = '<div style="font-size:13px"><button class="crumb" data-click="' + on(function () { set({ view: 'clients' }); }) + '">Clients</button> <span class="muted">›</span> <button class="crumb" data-click="' + openCompany(c.id) + '">' + esc(c.name) + '</button> <span class="muted">› ' + esc(p.name) + '</span></div>' +
+      '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end;margin-top:14px"><div>' + badge(p.status) + '<h1 class="h1" style="margin-top:10px">' + esc(p.name) + '</h1><p class="muted" style="margin:0">DCI ' + esc(p.dci) + ' · ' + esc(p.form) + ' · ' + esc(p.area) + '</p></div>' +
+      '<div class="card" style="padding:12px 16px"><div class="lbl">Prochaine échéance</div><div style="font-weight:700">' + esc(p.next) + '</div><div class="muted" style="font-size:13px">' + esc(p.nextLabel) + '</div></div></div>' +
+      '<div class="tabs" role="tablist" aria-label="Rubriques du médicament" style="margin:24px 0 20px">' + tabs.map(function (t) {
+        return '<button role="tab" class="tab' + (cur === t[0] ? ' on' : '') + '" data-click="' + on(function () { set({ tab: t[0] }); }) + '">' + t[1] + '</button>';
+      }).join('') + '</div>';
+
+    if (cur === 'docs') {
+      h += '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Document</th><th>Autorité</th><th>Version</th><th>Expiration</th><th>Statut</th><th></th></tr></thead><tbody>' +
+        D.docs.map(function (d) { return '<tr><td style="font-weight:600">' + esc(d.type) + '</td><td>' + d.auth + '</td><td>' + d.ver + '</td><td>' + d.exp + '</td><td>' + badge(d.status) + '</td><td style="text-align:right"><button class="btn ghost sm">Ouvrir le PDF</button></td></tr>'; }).join('') +
+        '</tbody></table></div><div style="margin-top:14px"><button class="btn ghost">+ Déposer un document</button></div>';
+    } else if (cur === 'ms') {
+      h += '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Date</th><th>Jalon</th><th>Responsable</th><th>Statut</th><th></th></tr></thead><tbody>' +
+        D.ms.map(function (m) {
+          var key = p.id + m.id;
+          var done = S.done[key] === undefined ? m.done : S.done[key];
+          var st = done ? 'Fait' : (m.urgent ? 'À faire' : 'À venir');
+          return '<tr><td style="white-space:nowrap">' + m.date + '</td><td style="font-weight:600">' + esc(m.label) + '</td><td>' + esc(m.owner) + '</td><td>' + badge(st) + '</td><td style="text-align:right"><button class="btn ghost sm" data-click="' + on(function () { var d = {}; for (var k in S.done) d[k] = S.done[k]; d[key] = !done; set({ done: d }); }) + '">' + (done ? 'Rouvrir' : 'Marquer fait') + '</button></td></tr>';
+        }).join('') + '</tbody></table></div><p class="muted small">Alertes e-mail à J-90, J-30 et J-7.</p>';
+    } else if (cur === 'trials') {
+      h += '<div class="stack" style="gap:16px">' + D.trials.map(function (t) {
+        return '<section class="card"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px"><div><div class="lbl">' + esc(t.phase) + ' · ' + esc(t.reg) + '</div><h2 class="h2" style="margin:6px 0 4px">' + esc(t.endpoint) + '</h2><div class="muted" style="font-size:13px">' + esc(t.n) + ' · ' + esc(t.state) + '</div></div><span style="align-self:flex-start">' + badge(t.verdict) + '</span></div>' +
+          '<div style="margin-top:14px;padding:14px;background:#f3f6fa;border-radius:8px;font-size:13.5px">' + esc(t.result) + '</div><div class="muted" style="font-size:12px;margin-top:10px">Source : ' + esc(t.source) + ' · mis à jour automatiquement le ' + t.updated + '</div></section>';
+      }).join('') + '</div>';
+    } else if (cur === 'events') {
+      var all = S.added.filter(function (e) { return e.pid === p.id; }).concat(D.events);
+      var nS = all.filter(function (e) { return e.grav !== 'Non grave'; }).length;
+      var shown = all.filter(function (e) { return !S.serious || e.grav !== 'Non grave'; });
+      h += '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:14px;align-items:center"><p class="muted" style="margin:0">' + all.length + ' signalements, dont ' + nS + ' grave' + (nS > 1 ? 's' : '') + '.</p><div class="pills">' +
+        '<button class="pill' + (S.serious ? '' : ' on') + '" data-click="' + on(function () { set({ serious: false }); }) + '">Tous</button>' +
+        '<button class="pill' + (S.serious ? ' on' : '') + '" data-click="' + on(function () { set({ serious: true }); }) + '">Graves uniquement</button></div></div>' +
+        '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Date</th><th>Effet (MedDRA)</th><th>Gravité</th><th>Cas</th><th>Source</th><th>Lot</th><th>Statut</th><th>Action prise</th></tr></thead><tbody>' +
+        shown.map(function (e) { return '<tr><td style="white-space:nowrap">' + e.date + '</td><td style="font-weight:600">' + esc(e.term) + '</td><td>' + badge(e.grav) + '</td><td>' + esc(e.cases) + '</td><td>' + esc(e.source) + '</td><td>' + esc(e.lot) + '</td><td>' + badge(e.status) + '</td><td>' + esc(e.action) + '</td></tr>'; }).join('') +
+        '</tbody></table></div>' +
+        '<section class="card" style="margin-top:16px"><h2 class="h2">Signaler un effet indésirable</h2><div class="row">' +
+        '<label class="field" style="flex:2 1 220px">Effet observé<input type="text" id="ev-term" placeholder="ex. Nausées"></label>' +
+        '<label class="field" style="flex:1 1 140px">Gravité<select id="ev-grav"><option>Non grave</option><option>Grave</option><option>Fatal</option></select></label>' +
+        '<label class="field" style="flex:1 1 140px">Source<select id="ev-src"><option>Client</option><option>Patient</option><option>Professionnel de santé</option><option>Essai</option></select></label>' +
+        '<button class="btn" data-click="' + on(function () {
+          var term = document.getElementById('ev-term').value.trim(); if (!term) return;
+          set({ added: [{ pid: p.id, date: TODAY, term: term, grav: document.getElementById('ev-grav').value, cases: '1', source: document.getElementById('ev-src').value, lot: '—', status: 'Nouveau', action: '—' }].concat(S.added) });
+        }) + '">Ajouter</button></div>' +
+        '<p class="muted" style="font-size:12px;margin:10px 0 0">Un effet grave déclenche une alerte immédiate. La déclaration officielle (EudraVigilance, ANSM) reste à faire par l’entreprise.</p></section>';
+    } else {
+      h += '<div class="grid3"><section class="card" style="min-width:0"><h2 class="h2">Fournisseurs</h2><div class="scroll"><table><thead><tr><th>Nom</th><th>Pays</th><th>Rôle</th><th>Audit</th></tr></thead><tbody>' +
+        D.suppliers.map(function (s) { return '<tr><td style="font-weight:600">' + esc(s.name) + '</td><td>' + esc(s.country) + '</td><td>' + esc(s.role) + '</td><td>' + badge(s.audit) + '</td></tr>'; }).join('') +
+        '</tbody></table></div></section><section class="card" style="min-width:0"><h2 class="h2">Acheteurs</h2><div class="scroll"><table><thead><tr><th>Nom</th><th>Pays</th><th>Type</th><th>Contrat</th></tr></thead><tbody>' +
+        D.buyers.map(function (b) { return '<tr><td style="font-weight:600">' + esc(b.name) + '</td><td>' + esc(b.country) + '</td><td>' + esc(b.role) + '</td><td>' + esc(b.contract) + '</td></tr>'; }).join('') +
+        '</tbody></table></div></section></div><div style="margin-top:14px"><button class="btn ghost">+ Ajouter un partenaire</button></div>';
+    }
+    return '<div>' + h + '</div>';
+  }
+
+  function viewCrm() {
+    var shown = S.contacts.filter(function (c) { return S.crmFilter === 'Tous' || c.status === S.crmFilter; });
+    return '<div class="stack"><div><h1 class="h1">Contacts</h1><p class="muted" style="margin:0">Clients et prospects. « Étape suivante » fait avancer le contact dans le démarchage.</p></div>' +
+      '<div class="pills">' + ['Tous'].concat(STEPS).map(function (f) { return '<button class="pill' + (S.crmFilter === f ? ' on' : '') + '" data-click="' + on(function () { set({ crmFilter: f }); }) + '">' + f + '</button>'; }).join('') + '</div>' +
+      '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Nom</th><th>Fonction</th><th>Entreprise</th><th>Statut</th><th>Dernier échange</th><th>Prochaine action</th><th></th></tr></thead><tbody>' +
+      shown.map(function (c) {
+        return '<tr><td style="font-weight:600">' + esc(c.name) + '</td><td>' + esc(c.role) + '</td><td>' + esc(c.company) + '</td><td>' + badge(c.status) + '</td><td>' + esc(c.last) + '</td><td>' + esc(c.next) + '</td>' +
+          '<td style="text-align:right"><button class="btn ghost sm" data-click="' + on(function () {
+            var i = STEPS.indexOf(c.status); var nx = i < 0 || i >= STEPS.length - 1 ? c.status : STEPS[i + 1];
+            set({ contacts: S.contacts.map(function (x) { return x.id === c.id ? Object.assign({}, x, { status: nx, last: TODAY + ' · mise à jour' }) : x; }) });
+          }) + '">Étape suivante</button></td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+
+  function viewFees() {
+    var f = S.invForm;
+    return '<div class="stack"><div><h1 class="h1">Honoraires</h1><p class="muted" style="margin:0">Saisissez vos factures ; les totaux par entreprise se recalculent aussitôt.</p></div>' +
+      '<section class="card"><h2 class="h2">Ajouter une facture</h2><div class="row">' +
+      '<label class="field" style="flex:2 1 200px">Entreprise<select id="inv-cid">' + S.companies.map(function (c) { return '<option value="' + c.id + '"' + (c.id === f.cid ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field" style="flex:1 1 140px">Numéro<input type="text" id="inv-num" placeholder="FAC-2026-043"></label>' +
+      '<label class="field" style="flex:1 1 120px">Montant HT (€)<input type="number" min="0" id="inv-ht" placeholder="2400"></label>' +
+      '<label class="field" style="flex:1 1 130px">Statut<select id="inv-st"><option>Payée</option><option>En attente</option></select></label>' +
+      '<button class="btn" data-click="' + on(function () {
+        var cid = document.getElementById('inv-cid').value, num = document.getElementById('inv-num').value.trim();
+        var ht = Number(String(document.getElementById('inv-ht').value).replace(',', '.'));
+        if (!num || !(ht > 0)) { set({ invError: true, invForm: { cid: cid } }); return; }
+        set({ invoices: [{ num: num, date: TODAY, cid: cid, ht: ht, status: document.getElementById('inv-st').value }].concat(S.invoices), invError: false, invForm: { cid: cid } });
+      }) + '">Ajouter</button></div>' +
+      (S.invError ? '<p class="err">Indiquez un numéro et un montant.</p>' : '') + '</section>' +
+      '<div class="kpis">' + S.companies.map(function (c) { return '<div class="card"><div class="lbl">' + esc(c.name) + '</div><div class="kpi-v">' + eur(sumBy(c.id, 'Payée')) + '</div><div class="muted small">' + eur(sumBy(c.id, 'En attente')) + ' en attente</div></div>'; }).join('') + '</div>' +
+      '<div class="card scroll" style="padding:8px"><table><thead><tr><th>Facture</th><th>Date</th><th>Entreprise</th><th>HT</th><th>TTC</th><th>Statut</th></tr></thead><tbody>' +
+      S.invoices.map(function (i) { return '<tr><td style="font-weight:600">' + esc(i.num) + '</td><td>' + i.date + '</td><td>' + esc(companyOf(i.cid).name) + '</td><td>' + eur(i.ht) + '</td><td>' + eur(i.ht * 1.2) + '</td><td>' + badge(i.status) + '</td></tr>'; }).join('') +
+      '</tbody></table></div></div>';
+  }
+
+  function viewAdd() {
+    var f = S.form;
+    function inp(id, label, ph, type, flex) {
+      return '<label class="field"' + (flex ? ' style="flex:1 1 200px"' : '') + '>' + label + '<input type="' + (type || 'text') + '" id="f-' + id + '" value="' + esc(f[id]) + '" placeholder="' + ph + '"></label>';
+    }
+    return '<div class="stack" style="max-width:720px"><div><h1 class="h1">Ajouter une entreprise</h1><p class="muted" style="margin:0">Elle apparaîtra dans vos onglets à gauche.</p></div>' +
+      '<section class="card stack" style="gap:16px">' + inp('name', 'Nom de l’entreprise', 'ex. Laboratoires Exemple') +
+      '<div class="row">' + inp('city', 'Ville', 'ex. Toulouse', 'text', 1) + inp('siren', 'SIREN', '9 chiffres', 'text', 1) + '</div>' +
+      inp('sector', 'Secteur précis', 'ex. Biosimilaires en oncologie') +
+      '<div class="row">' + inp('contact', 'Contact principal', 'Prénom Nom', 'text', 1) + inp('email', 'E-mail du contact', 'nom@entreprise.fr', 'email', 1) + '</div>' +
+      (S.formError ? '<p class="err" style="margin:0">Indiquez au moins le nom de l’entreprise.</p>' : '') +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" data-click="' + on(function () {
+        var v = {}; ['name', 'city', 'siren', 'sector', 'contact', 'email'].forEach(function (k) { v[k] = document.getElementById('f-' + k).value.trim(); });
+        if (!v.name) { set({ form: v, formError: true }); return; }
+        var id = 'c' + Date.now();
+        var watch = {}; for (var k in S.watch) watch[k] = S.watch[k];
+        watch[id] = { sector: v.sector, topics: [], keywords: [], sources: SOURCES.slice(), lastRun: 'pas encore lancée' };
+        set({
+          companies: S.companies.concat([{ id: id, name: v.name, city: v.city || '—' }]),
+          watch: watch,
+          contacts: v.contact ? S.contacts.concat([{ id: 'k' + id, name: v.contact, role: '—', company: v.name, status: 'Client', last: TODAY + ' · création', next: '—' }]) : S.contacts,
+          view: 'company', companyId: id, sub: 'watch', prodFilter: 'Tous',
+          form: { name: '', city: '', siren: '', sector: '', contact: '', email: '' }, formError: false
+        });
+      }) + '">Créer l’entreprise</button><button class="btn ghost" data-click="' + on(function () { set({ view: 'dash' }); }) + '">Annuler</button></div></section></div>';
+  }
+
+  // ---------- Rendu ----------
+  function render() {
+    H = [];
+    document.getElementById('side').innerHTML = renderSide();
+    var v = S.view;
+    document.getElementById('main').innerHTML =
+      v === 'clients' ? viewClients() :
+      v === 'company' ? viewCompany() :
+      v === 'product' ? viewProduct() :
+      v === 'crm' ? viewCrm() :
+      v === 'fees' ? viewFees() :
+      v === 'add' ? viewAdd() : viewDash();
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-click]');
+    if (el && document.body.contains(el) && H[+el.getAttribute('data-click')]) { H[+el.getAttribute('data-click')](e); }
+  });
+  document.addEventListener('change', function (e) {
+    var el = e.target.closest('[data-change]');
+    if (el && H[+el.getAttribute('data-change')]) { H[+el.getAttribute('data-change')](e); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.id === 'kw') { var b = e.target.nextElementSibling; if (b) b.click(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

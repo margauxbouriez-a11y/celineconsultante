@@ -1,5 +1,7 @@
 # Céline Consultante — plateforme de gestion
 
+> **Prototype « plateforme consultante » (réglementaire pharma)** : voir le dossier [`prototype/`](prototype/), page autonome avec données fictives. Une fois publiée par GitHub Pages, elle s'ouvre à l'adresse `…/celineconsultante/prototype/`.
+
 Plateforme interne d'une agence d'IA et d'automatisation, **100 % gratuite à héberger** :
 
 - l'interface est publiée par **GitHub Pages** (ce dépôt) ;
