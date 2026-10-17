@@ -1,0 +1,243 @@
+{
+  "name": "Démarchage — envoi et suivi",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "5efb1f01-467a-495c-8219-a20f342bf744",
+      "name": "Chaque matin (lun-ven 9h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/prospects_a_contacter",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 20 }) }}",
+        "options": {}
+      },
+      "id": "85118827-32ae-4f9b-89ec-7678919dc4ee",
+      "name": "Prospects à contacter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.entreprise }} : quelques heures par semaine à récupérer ?",
+        "emailType": "html",
+        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Dans beaucoup de cabinets comme {{ $json.entreprise }}, une bonne partie de la semaine part encore dans des tâches répétitives : relancer les clients pour leurs pièces, trier les factures reçues par email, ressaisir des informations d'un outil à l'autre.<br><br>Je conçois des automatisations sur mesure (IA + n8n) qui prennent ces tâches en charge, branchées sur vos outils actuels, sans changer vos habitudes de travail.<br><br>Seriez-vous disponible 15 minutes la semaine prochaine ? Je vous montre un exemple concret adapté à votre cabinet.<br><br><p>Belle journée,<br>[Ton prénom]<br>[Nom de ton entreprise] — IA &amp; automatisation<br>[Ton téléphone]</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "90f4e3cd-f96b-4cea-b570-02ce37d1ebf5",
+      "name": "Envoyer le premier email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        0
+      ],
+      "notes": "Connecte ton compte Gmail ici (ou remplace par un nœud Send Email / Outlook)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/enregistrer_email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_email: $('Prospects à contacter').item.json.email, p_entreprise: $('Prospects à contacter').item.json.entreprise, p_contact_nom: $('Prospects à contacter').item.json.contact_nom, p_secteur: $('Prospects à contacter').item.json.secteur, p_objet: 'Premier contact' }) }}",
+        "options": {}
+      },
+      "id": "207f3814-b417-4b86-b6d4-14db4bcfd4b9",
+      "name": "Enregistrer dans la plateforme",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        0
+      ],
+      "notes": "Identifiants : choisis ton compte Supabase (adresse du projet + clé service_role)."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "18f22cb9-e59c-4cc1-b99a-2ec2ed6a474c",
+      "name": "Chaque matin (lun-ven 10h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/relances_du_jour",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 20, p_max_emails: 3 }) }}",
+        "options": {}
+      },
+      "id": "4f3a249a-2619-4688-9701-e74e5654b4e2",
+      "name": "Prospects à relancer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Re: {{ $json.entreprise }} : quelques heures par semaine à récupérer ?",
+        "emailType": "html",
+        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Je me permets de revenir vers vous au sujet de mon précédent message. Automatiser les relances de pièces justificatives, par exemple, libère souvent plusieurs heures par semaine à une équipe comme celle de {{ $json.entreprise }}.<br><br>Si le sujet vous intéresse, répondez simplement à cet email avec un créneau qui vous convient.<br><br><p>Belle journée,<br>[Ton prénom]<br>[Nom de ton entreprise] — IA &amp; automatisation<br>[Ton téléphone]</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "95356a5a-7afe-423b-8f7e-dcf6beed70e4",
+      "name": "Envoyer la relance",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        260
+      ],
+      "notes": "Connecte ton compte Gmail ici (ou remplace par un nœud Send Email / Outlook)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/enregistrer_email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_email: $('Prospects à relancer').item.json.email, p_entreprise: $('Prospects à relancer').item.json.entreprise, p_contact_nom: $('Prospects à relancer').item.json.contact_nom, p_secteur: $('Prospects à relancer').item.json.secteur, p_objet: 'Relance' }) }}",
+        "options": {}
+      },
+      "id": "b3fb2156-3076-468f-a30b-604f7b324575",
+      "name": "Enregistrer la relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        260
+      ],
+      "notes": "Identifiants : choisis ton compte Supabase (adresse du projet + clé service_role)."
+    }
+  ],
+  "connections": {
+    "Chaque matin (lun-ven 9h)": {
+      "main": [
+        [
+          {
+            "node": "Prospects à contacter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prospects à contacter": {
+      "main": [
+        [
+          {
+            "node": "Envoyer le premier email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer le premier email": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer dans la plateforme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chaque matin (lun-ven 10h)": {
+      "main": [
+        [
+          {
+            "node": "Prospects à relancer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prospects à relancer": {
+      "main": [
+        [
+          {
+            "node": "Envoyer la relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer la relance": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer la relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

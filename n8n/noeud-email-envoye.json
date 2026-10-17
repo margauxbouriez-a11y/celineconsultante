@@ -1,0 +1,26 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/enregistrer_email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_email: $('Prospects à contacter').item.json.email, p_entreprise: $('Prospects à contacter').item.json.entreprise, p_contact_nom: $('Prospects à contacter').item.json.contact_nom, p_secteur: $('Prospects à contacter').item.json.secteur, p_objet: 'Premier contact' }) }}",
+        "options": {}
+      },
+      "id": "7a6a11d9-ede3-470f-9bd2-605bea983fed",
+      "name": "Enregistrer dans la plateforme",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ],
+      "notes": "Identifiants : choisis ton compte Supabase (adresse du projet + clé service_role)."
+    }
+  ],
+  "connections": {}
+}
