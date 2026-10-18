@@ -1,4 +1,4 @@
-# Céline Consultante — plateforme de gestion
+# Prospection — plateforme de gestion
 
 > **Prototype « plateforme consultante » (réglementaire pharma)** : voir le dossier [`prototype/`](prototype/), page autonome avec données fictives. Une fois publiée par GitHub Pages, elle s'ouvre à l'adresse `…/celineconsultante/prototype/`.
 

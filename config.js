@@ -3,7 +3,7 @@
 // La clé anon peut être publique : la base est protégée par les règles d'accès (seule l'équipe voit les données).
 // Ne mets JAMAIS la clé "service_role" ici : elle est réservée à n8n.
 window.PLATEFORME = {
-  nom: 'Céline Consultante',
+  nom: 'Prospection',
   sousTitre: 'IA & automatisation',
   supabaseUrl: '',      // ex. 'https://abcdefghijkl.supabase.co'
   supabaseCleAnon: '',  // ex. 'eyJhbGciOi...'
