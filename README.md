@@ -10,6 +10,7 @@ Plateforme interne d'une agence d'IA et d'automatisation, **100 % gratuite à h�
 
 | Onglet | Contenu |
 | --- | --- |
+| Recherche | Choisis un secteur, une taille d'entreprise et une zone : n8n trouve les entreprises dans l'annuaire officiel et les ajoute au Démarchage |
 | Tableau de bord | Entreprises dans le fichier, emails envoyés sur 7 jours, taux de réponse, relances à faire, résultats par secteur, dernières activités |
 | Démarchage | Entreprises démarchées et leur contact (nom, poste, email, téléphone), statut, historique, notes, export CSV |
 | Automatisation n8n | Le nœud n8n à copier-coller et le workflow complet, déjà remplis avec l'adresse de ton projet |
@@ -62,8 +63,8 @@ La clé **service_role** ne doit **jamais** aller dans ce dépôt ; elle sert un
      - 9 h, du lundi au vendredi : 20 entreprises « À contacter » → premier email (Gmail) → enregistrement.
      - 10 h, du lundi au vendredi : relances du jour → email de relance → enregistrement.
      - Après 3 emails sans réponse, l'entreprise n'est plus relancée.
-     Connecte ton Gmail et ton compte Supabase dans les nœuds, puis remplace `[Ton prénom]`, `[Nom de ton entreprise]`
-     et `[Ton téléphone]` dans la signature.
+     Connecte ton Gmail et ton compte Supabase dans les nœuds, puis remplace `[Prénom Nom]`, `[Nom de l'entreprise]`
+     et `[Téléphone]` dans le texte et la signature.
 
 ### Fonctions disponibles pour n8n
 
@@ -79,6 +80,31 @@ Toutes s'appellent en `POST https://<ton-projet>.supabase.co/rest/v1/rpc/<foncti
 
 ---
 
+## Recherche automatique d'entreprises
+
+1. Si ta base existait avant cette fonction, **relance tout le fichier [`supabase/schema.sql`](supabase/schema.sql)** dans le SQL Editor
+   (aucune donnée n'est effacée) : il ajoute la table `recherches` et les fonctions utilisées par n8n.
+2. Onglet *Automatisation n8n* → bouton **Workflow « Recherche d'entreprises »**, puis dans n8n *Import from File*.
+   Choisis ton compte Supabase dans les nœuds « Recherche en attente » et « Ajouter à la plateforme », puis active le workflow.
+3. Onglet **Recherche** de la plateforme : secteur (ou code NAF), taille, département(s) facultatif(s), nombre d'entreprises.
+4. Toutes les heures de 8 h à 20 h, n8n prend la recherche en attente, interroge
+   l'[API Recherche d'entreprises](https://recherche-entreprises.api.gouv.fr) (publique, gratuite, sans clé)
+   et ajoute les entreprises actives trouvées en « À contacter », sans doublon (SIREN), avec le nom du dirigeant et la taille.
+
+> L'annuaire ne fournit pas d'email. Complète l'email depuis la fiche de l'entreprise (bouton « Trouver son site »),
+> le workflow *Démarchage* lui écrira ensuite automatiquement.
+
+| Fonction (n8n, clé service_role) | Rôle |
+| --- | --- |
+| `recherche_suivante` | Renvoie la prochaine recherche en attente et la passe « en cours » |
+| `ajouter_resultats_recherche` | `{ "p_recherche_id", "p_lignes": [...], "p_nb_trouvees" }` ou `{ "p_recherche_id", "p_erreur" }` |
+
+## Email de démarchage
+
+Le workflow *Démarchage* envoie un email de présentation (étudiante en 2ᵉ année à HEC Paris qui crée son entreprise
+d'accompagnement en IA : formations, automatisations, plateformes centralisées), puis une relance.
+Remplace `[Prénom Nom]`, `[Nom de l'entreprise]` et `[Téléphone]` dans les deux nœuds Gmail.
+
 ## Secteur conseillé : les cabinets d'expertise comptable
 
 L'email modèle vise les cabinets comptables. Ils perdent beaucoup de temps sur des tâches répétitives (relances de pièces,
@@ -92,5 +118,7 @@ permet de comparer les taux de réponse dans le tableau de bord.
 index.html, app.js, styles.css   Interface (GitHub Pages)
 config.js                        Nom affiché + adresse et clé publique Supabase
 supabase/schema.sql              Tables, règles d'accès et fonctions (à exécuter dans Supabase)
-n8n/                             Nœud et workflow n8n à importer
+n8n/workflow-demarchage.json     Workflow d'envoi des emails et des relances
+n8n/workflow-recherche.json      Workflow de recherche d'entreprises (onglet Recherche)
+n8n/noeud-email-envoye.json      Nœud à coller dans un workflow existant
 ```

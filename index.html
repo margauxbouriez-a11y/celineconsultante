@@ -46,6 +46,7 @@
     </div>
     <nav class="nav" aria-label="Sections">
       <button data-onglet="tableau">Tableau de bord</button>
+      <button data-onglet="recherche">Recherche</button>
       <button data-onglet="demarchage">Démarchage <span class="compteur" id="nb-prospects">0</span></button>
       <button data-onglet="n8n">Automatisation n8n</button>
       <button disabled title="Prochain module">Clients <span class="bientot">bientôt</span></button>
@@ -88,6 +89,63 @@
       </div>
     </section>
 
+    <!-- ===== Recherche d'entreprises ===== -->
+    <section data-vue="recherche" hidden>
+      <div class="entete">
+        <div>
+          <h1>Recherche d'entreprises</h1>
+          <p>Choisis le secteur et la taille des entreprises à démarcher. n8n les trouve dans l'annuaire officiel des entreprises et les ajoute à l'onglet Démarchage.</p>
+        </div>
+      </div>
+
+      <form class="carte bloc form-recherche" id="form-recherche">
+        <label>Secteur
+          <select name="secteur" id="r-secteur" required></select>
+        </label>
+        <label id="r-naf-zone" hidden>Code(s) NAF
+          <input type="text" name="naf" id="r-naf" placeholder="ex. 70.22Z ou 70.22Z, 73.11Z">
+          <span class="aide">Trouve le code de ton secteur sur <a href="https://www.insee.fr/fr/information/2406147" target="_blank" rel="noopener">insee.fr</a> (format 00.00A).</span>
+        </label>
+        <fieldset class="large">
+          <legend>Taille de l'entreprise <span class="sous">(une ou plusieurs)</span></legend>
+          <div class="puces" id="r-tailles"></div>
+        </fieldset>
+        <label><span>Département(s) <span class="sous" style="font-weight:400">facultatif</span></span>
+          <input type="text" name="departements" placeholder="ex. 75, 92, 69 (vide = toute la France)">
+        </label>
+        <label>Nombre d'entreprises à ajouter
+          <select name="nombre">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <div class="err large" id="err-recherche" role="alert"></div>
+        <div class="large actions-recherche">
+          <button class="btn principal">Lancer la recherche</button>
+          <span class="sous">n8n traite les recherches toutes les heures, de 8 h à 20 h.</span>
+        </div>
+      </form>
+
+      <div class="carte" style="margin-top:18px">
+        <div class="tableau-wrap">
+          <table class="table-recherches">
+            <thead><tr>
+              <th>Demandée</th><th>Secteur</th><th>Taille</th><th class="col-option">Zone</th><th>État</th><th>Résultat</th><th></th>
+            </tr></thead>
+            <tbody id="lignes-recherches"></tbody>
+          </table>
+        </div>
+        <div class="vide" id="vide-recherches" hidden>
+          <h3>Aucune recherche pour l'instant</h3>
+          <p>Lance ta première recherche ci-dessus. Pense à importer le workflow « Recherche d'entreprises » dans n8n (onglet Automatisation n8n).</p>
+        </div>
+      </div>
+
+      <p class="avertissement" style="margin-top:18px">L'annuaire officiel donne le nom de l'entreprise, sa ville, sa taille et le nom de son dirigeant, mais <b>pas son email</b>. Les entreprises trouvées arrivent en « À contacter » : ouvre-les dans Démarchage, utilise le bouton « Trouver son site » et complète l'email. Le premier email automatique partira ensuite.</p>
+    </section>
+
     <!-- ===== Démarchage ===== -->
     <section data-vue="demarchage" hidden>
       <div class="entete">
@@ -128,7 +186,10 @@
           <h1>Automatisation n8n</h1>
           <p>Relie ton workflow d'envoi d'emails à la plateforme : chaque email envoyé met à jour l'onglet Démarchage.</p>
         </div>
-        <button class="btn ambre" id="telecharger-workflow">Télécharger le workflow complet</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="telecharger-recherche">Workflow « Recherche d'entreprises »</button>
+          <button class="btn ambre" id="telecharger-workflow">Workflow « Démarchage »</button>
+        </div>
       </div>
 
       <div class="etapes-n8n">
@@ -145,6 +206,11 @@
             <pre id="noeud-json"></pre>
             <button class="btn" data-copier="noeud-json">Copier le nœud</button>
           </div>
+        </div>
+
+        <div class="carte etape-n8n">
+          <h2>Importe le workflow « Recherche d'entreprises »</h2>
+          <p>Télécharge-le avec le bouton en haut de la page, puis dans n8n : <b>Import from File</b>. Choisis ton compte Supabase dans les nœuds «&nbsp;Recherche en attente&nbsp;» et «&nbsp;Ajouter à la plateforme&nbsp;», puis active le workflow. Il regarde toutes les heures (8 h – 20 h) si tu as lancé une recherche dans l'onglet Recherche. L'annuaire des entreprises est public et gratuit : aucun compte à créer.</p>
         </div>
 
         <div class="carte etape-n8n">
@@ -187,6 +253,7 @@
 
     <div id="zone-suivi" hidden>
       <div class="actions-rapides">
+        <a class="btn petit" id="trouver-site" target="_blank" rel="noopener">Trouver son site ↗</a>
         <button class="btn petit" id="noter-email">J'ai envoyé un email</button>
         <button class="btn petit" data-statut-rapide="repondu">A répondu</button>
         <button class="btn petit" data-statut-rapide="rdv">RDV pris</button>

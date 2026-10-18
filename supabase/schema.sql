@@ -40,6 +40,29 @@ create table if not exists public.equipe (
   email text primary key
 );
 
+-- Recherches d'entreprises lancées depuis l'onglet « Recherche » (traitées par n8n)
+create table if not exists public.recherches (
+  id            bigint generated always as identity primary key,
+  secteur       text not null,
+  codes_naf     text not null,              -- codes NAF séparés par des virgules (ex. 69.20Z)
+  tailles       text not null,              -- tranches d'effectif INSEE séparées par des virgules (ex. 11,12)
+  tailles_libelle text,
+  departements  text,                       -- ex. 75,92 (vide = toute la France)
+  nombre        integer not null default 25 check (nombre between 1 and 200),
+  statut        text not null default 'en_attente'
+                check (statut in ('en_attente','en_cours','terminee','erreur')),
+  nb_trouvees   integer,
+  nb_ajoutees   integer,
+  message       text,
+  created_at    timestamptz not null default now(),
+  traitee_at    timestamptz
+);
+
+-- Colonnes ajoutées pour les entreprises trouvées automatiquement
+alter table public.prospects add column if not exists siren text unique;
+alter table public.prospects add column if not exists effectif text;
+alter table public.prospects add column if not exists recherche_id bigint references public.recherches(id) on delete set null;
+
 create index if not exists idx_prospects_statut on public.prospects(statut);
 create index if not exists idx_activites_prospect on public.activites(prospect_id);
 create index if not exists idx_activites_date on public.activites(created_at desc);
@@ -218,6 +241,65 @@ begin
   return jsonb_build_object('crees', n_crees, 'mis_a_jour', n_maj, 'erreurs', erreurs);
 end $$;
 
+-- ---------- Recherche automatique d'entreprises (n8n) ----------
+
+-- Donne à n8n la prochaine recherche à traiter et la marque « en cours »
+create or replace function public.recherche_suivante()
+returns setof public.recherches language plpgsql as $$
+begin
+  -- une recherche restée « en cours » plus d'une heure (n8n interrompu) est remise en attente
+  update public.recherches set statut = 'en_attente'
+  where statut = 'en_cours' and traitee_at < now() - interval '1 hour';
+
+  return query
+  update public.recherches set statut = 'en_cours', traitee_at = now()
+  where id = (select id from public.recherches where statut = 'en_attente'
+              order by id limit 1 for update skip locked)
+  returning *;
+end $$;
+
+-- n8n renvoie les entreprises trouvées : ajoute les nouvelles (sans doublon de SIREN) et clôt la recherche
+create or replace function public.ajouter_resultats_recherche(
+  p_recherche_id bigint,
+  p_lignes       jsonb default '[]'::jsonb,
+  p_nb_trouvees  int   default null,
+  p_erreur       text  default null
+) returns jsonb language plpgsql as $$
+declare
+  r public.recherches;
+  e jsonb;
+  v_siren text;
+  n int := 0;
+begin
+  select * into r from public.recherches where id = p_recherche_id;
+  if not found then raise exception 'Recherche % introuvable', p_recherche_id; end if;
+
+  if nullif(trim(p_erreur), '') is not null then
+    update public.recherches set statut = 'erreur', message = left(p_erreur, 500), traitee_at = now()
+    where id = r.id;
+    return jsonb_build_object('ajoutees', 0, 'erreur', p_erreur);
+  end if;
+
+  for e in select * from jsonb_array_elements(coalesce(p_lignes, '[]'::jsonb)) loop
+    v_siren := nullif(trim(e->>'siren'), '');
+    continue when v_siren is null or exists (select 1 from public.prospects where siren = v_siren);
+    insert into public.prospects(entreprise, siren, secteur, contact_nom, contact_poste, ville, effectif, recherche_id, source)
+    values (coalesce(nullif(trim(e->>'entreprise'), ''), 'SIREN ' || v_siren), v_siren, r.secteur,
+            nullif(trim(e->>'contact_nom'), ''), nullif(trim(e->>'contact_poste'), ''),
+            nullif(trim(e->>'ville'), ''), nullif(trim(e->>'effectif'), ''), r.id, 'n8n');
+    n := n + 1;
+  end loop;
+
+  update public.recherches set
+    statut = 'terminee',
+    nb_trouvees = coalesce(p_nb_trouvees, jsonb_array_length(coalesce(p_lignes, '[]'::jsonb))),
+    nb_ajoutees = n,
+    message = null,
+    traitee_at = now()
+  where id = r.id;
+  return jsonb_build_object('ajoutees', n);
+end $$;
+
 -- ---------- Sécurité ----------
 -- Seules les personnes inscrites dans la table "equipe" voient et modifient les données.
 -- n8n utilise la clé "service_role", qui passe outre ces règles.
@@ -229,6 +311,7 @@ $$;
 alter table public.prospects enable row level security;
 alter table public.activites enable row level security;
 alter table public.equipe    enable row level security;
+alter table public.recherches enable row level security;
 
 drop policy if exists "equipe_prospects" on public.prospects;
 create policy "equipe_prospects" on public.prospects for all to authenticated
@@ -236,6 +319,10 @@ create policy "equipe_prospects" on public.prospects for all to authenticated
 
 drop policy if exists "equipe_activites" on public.activites;
 create policy "equipe_activites" on public.activites for all to authenticated
+  using (public.est_membre()) with check (public.est_membre());
+
+drop policy if exists "equipe_recherches" on public.recherches;
+create policy "equipe_recherches" on public.recherches for all to authenticated
   using (public.est_membre()) with check (public.est_membre());
 
 drop policy if exists "equipe_lecture" on public.equipe;
@@ -248,6 +335,10 @@ revoke execute on function public.enregistrer_reponse(text,text,text) from publi
 revoke execute on function public.prospects_a_contacter(int,text) from public, anon;
 revoke execute on function public.relances_du_jour(int,int) from public, anon;
 revoke execute on function public.importer_prospects(jsonb) from public, anon;
+revoke execute on function public.recherche_suivante() from public, anon, authenticated;
+revoke execute on function public.ajouter_resultats_recherche(bigint,jsonb,int,text) from public, anon, authenticated;
+grant execute on function public.recherche_suivante() to service_role;
+grant execute on function public.ajouter_resultats_recherche(bigint,jsonb,int,text) to service_role;
 grant execute on function public.enregistrer_email(text,text,text,text,text,bigint,text,int) to authenticated, service_role;
 grant execute on function public.enregistrer_reponse(text,text,text) to authenticated, service_role;
 grant execute on function public.prospects_a_contacter(int,text) to authenticated, service_role;

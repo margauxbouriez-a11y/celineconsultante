@@ -1,0 +1,215 @@
+{
+  "name": "Recherche d'entreprises (secteur + taille)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8-20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "6779001e-80c0-4f92-be16-6de80ee69f01",
+      "name": "Toutes les heures (8h-20h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/recherche_suivante",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "9bec5a88-4b80-41b5-9f6d-6a2ba9005a24",
+      "name": "Recherche en attente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "Identifiants : choisis ton compte Supabase (adresse du projet + clé service_role). Renvoie la prochaine recherche lancée depuis l'onglet Recherche de la plateforme."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee23554a-e064-4aa9-8737-43d67ed2bc2b",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d13d7a2f-b515-4c74-b555-0a514fb949cb",
+      "name": "Une recherche à traiter ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://recherche-entreprises.api.gouv.fr/search",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify(Object.assign({ activite_principale: $json.codes_naf, tranche_effectif_salarie: $json.tailles, etat_administratif: 'A', per_page: 25 }, $json.departements ? { departement: $json.departements } : {})) }}",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.results || $response.body.results.length === 0 || $response.body.page >= $response.body.total_pages }}",
+              "limitPagesFetched": true,
+              "maxRequests": "={{ Math.ceil(Math.min(Number($json.nombre) || 25, 200) / 25) }}",
+              "requestInterval": 300
+            }
+          }
+        }
+      },
+      "id": "2f5d1d3d-9961-4fdc-9737-561955342f7c",
+      "name": "Annuaire des entreprises",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -100
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "API publique et gratuite de l'État (recherche-entreprises.api.gouv.fr), sans compte ni clé. Filtre par code NAF, tranche d'effectif et département ; seules les entreprises actives sont gardées."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforme les résultats de l'annuaire en lignes pour la plateforme\nconst recherche = $('Recherche en attente').first().json;\nconst pages = $input.all().map((i) => i.json);\n\nconst probleme = pages.find((p) => p.error);\nif (probleme) {\n  const e = probleme.error;\n  return [{ json: { p_recherche_id: recherche.id, p_erreur: \"Annuaire des entreprises indisponible : \" + (e.message || e.description || JSON.stringify(e)).slice(0, 300) } }];\n}\n\nconst EFFECTIFS = {\n  '00': '0 salarié', '01': '1 à 2 salariés', '02': '3 à 5 salariés', '03': '6 à 9 salariés',\n  '11': '10 à 19 salariés', '12': '20 à 49 salariés', '21': '50 à 99 salariés', '22': '100 à 199 salariés',\n  '31': '200 à 249 salariés', '32': '250 à 499 salariés', '41': '500 à 999 salariés',\n  '42': '1 000 à 1 999 salariés', '51': '2 000 à 4 999 salariés', '52': '5 000 à 9 999 salariés', '53': '10 000 salariés et plus',\n};\n// \"CABINET DUPONT ET ASSOCIES (CDA)\" -> \"Cabinet Dupont et Associes\"\nconst PETITS_MOTS = new Set(['et', 'de', 'du', 'des', 'la', 'le', 'les', 'en', 'sur', 'au', 'aux', 'a', 'à']);\nconst joli = (s) => String(s || '')\n  .replace(/\\s*\\([^)]*\\)\\s*$/, '')\n  .toLowerCase()\n  .replace(/(^|[\\s'’(\\-\\/])(\\p{L}+)/gu, (m, a, mot) => a + (a && a.trim() === '' && PETITS_MOTS.has(mot) ? mot : mot[0].toUpperCase() + mot.slice(1)))\n  .trim();\n\nconst voulu = Math.min(Number(recherche.nombre) || 25, 200);\nconst lignes = [];\nconst vus = new Set();\nfor (const page of pages) {\n  for (const e of page.results || []) {\n    if (lignes.length >= voulu) break;\n    if (!e.siren || vus.has(e.siren)) continue;\n    vus.add(e.siren);\n    const siege = e.siege || {};\n    const dirigeant = (e.dirigeants || []).find((d) => d.type_dirigeant === 'personne physique' && d.nom);\n    const prenom = dirigeant && dirigeant.prenoms ? String(dirigeant.prenoms).split(/[\\s,]+/)[0] : '';\n    lignes.push({\n      siren: e.siren,\n      entreprise: joli(e.nom_complet || e.nom_raison_sociale),\n      ville: joli(siege.libelle_commune),\n      effectif: EFFECTIFS[e.tranche_effectif_salarie || siege.tranche_effectif_salarie] || null,\n      contact_nom: dirigeant ? joli((prenom + ' ' + dirigeant.nom).trim()) : null,\n      contact_poste: dirigeant ? dirigeant.qualite || null : null,\n    });\n  }\n}\n\nreturn [{ json: {\n  p_recherche_id: recherche.id,\n  p_lignes: lignes,\n  p_nb_trouvees: pages[0] && pages[0].total_results != null ? pages[0].total_results : lignes.length,\n} }];\n"
+      },
+      "id": "f462d10d-dea5-44e6-a591-8842c72329b6",
+      "name": "Préparer les entreprises",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://TON-PROJET.supabase.co/rest/v1/rpc/ajouter_resultats_recherche",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "92875c17-1797-4dec-b1e9-31273da35cc9",
+      "name": "Ajouter à la plateforme",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -100
+      ],
+      "notes": "Identifiants : ton compte Supabase. Ajoute les entreprises dans Démarchage (statut « À contacter », sans doublon) et marque la recherche comme terminée."
+    }
+  ],
+  "connections": {
+    "Toutes les heures (8h-20h)": {
+      "main": [
+        [
+          {
+            "node": "Recherche en attente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recherche en attente": {
+      "main": [
+        [
+          {
+            "node": "Une recherche à traiter ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une recherche à traiter ?": {
+      "main": [
+        [
+          {
+            "node": "Annuaire des entreprises",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Annuaire des entreprises": {
+      "main": [
+        [
+          {
+            "node": "Préparer les entreprises",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer les entreprises": {
+      "main": [
+        [
+          {
+            "node": "Ajouter à la plateforme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

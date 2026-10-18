@@ -46,9 +46,9 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $json.email }}",
-        "subject": "={{ $json.entreprise }} : quelques heures par semaine à récupérer ?",
+        "subject": "={{ $json.entreprise }} : former, automatiser, centraliser grâce à l'IA",
         "emailType": "html",
-        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Dans beaucoup de cabinets comme {{ $json.entreprise }}, une bonne partie de la semaine part encore dans des tâches répétitives : relancer les clients pour leurs pièces, trier les factures reçues par email, ressaisir des informations d'un outil à l'autre.<br><br>Je conçois des automatisations sur mesure (IA + n8n) qui prennent ces tâches en charge, branchées sur vos outils actuels, sans changer vos habitudes de travail.<br><br>Seriez-vous disponible 15 minutes la semaine prochaine ? Je vous montre un exemple concret adapté à votre cabinet.<br><br><p>Belle journée,<br>[Ton prénom]<br>[Nom de ton entreprise] — IA &amp; automatisation<br>[Ton téléphone]</p>",
+        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Je m'appelle [Prénom Nom], je suis étudiante en deuxième année à HEC Paris et je crée mon entreprise d'accompagnement en intelligence artificielle.<br><br>Beaucoup d'entreprises comme {{ $json.entreprise }} sentent que l'IA pourrait leur faire gagner du temps, sans toujours savoir par où commencer. J'interviens précisément sur trois besoins :<br><ul><li><b>Former vos équipes</b> : des ateliers concrets pour utiliser l'IA au quotidien (ChatGPT, Claude, Copilot…), efficacement et en toute sécurité.</li><li><b>Automatiser les tâches répétitives</b> : relances, saisie, tri des emails, reporting… directement connectés à vos outils actuels.</li><li><b>Centraliser vos informations</b> : une plateforme sur mesure qui réunit vos données, vos suivis et vos tableaux de bord au même endroit.</li></ul>Seriez-vous disponible pour un échange de 15 minutes dans les prochains jours ? Je vous proposerai une ou deux pistes concrètes adaptées à votre activité.<br><br><p>Bien cordialement,<br>[Prénom Nom]<br>Étudiante à HEC Paris · Fondatrice de [Nom de l'entreprise]<br>[Téléphone]</p>",
         "options": {
           "appendAttribution": false
         }
@@ -129,9 +129,9 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $json.email }}",
-        "subject": "=Re: {{ $json.entreprise }} : quelques heures par semaine à récupérer ?",
+        "subject": "=Re: {{ $json.entreprise }} : former, automatiser, centraliser grâce à l'IA",
         "emailType": "html",
-        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Je me permets de revenir vers vous au sujet de mon précédent message. Automatiser les relances de pièces justificatives, par exemple, libère souvent plusieurs heures par semaine à une équipe comme celle de {{ $json.entreprise }}.<br><br>Si le sujet vous intéresse, répondez simplement à cet email avec un créneau qui vous convient.<br><br><p>Belle journée,<br>[Ton prénom]<br>[Nom de ton entreprise] — IA &amp; automatisation<br>[Ton téléphone]</p>",
+        "message": "={{ $json.contact_nom ? 'Bonjour ' + $json.contact_nom + ',' : 'Bonjour,' }}<br><br>Je me permets de revenir vers vous au sujet de mon précédent message.<br><br>Si l'IA fait partie de vos sujets du moment, que ce soit pour former vos équipes, automatiser certaines tâches ou réunir vos outils sur une seule plateforme, je serais ravie d'en parler 15 minutes avec vous.<br><br>Il vous suffit de répondre à cet email avec un créneau qui vous convient.<br><br><p>Bien cordialement,<br>[Prénom Nom]<br>Étudiante à HEC Paris · Fondatrice de [Nom de l'entreprise]<br>[Téléphone]</p>",
         "options": {
           "appendAttribution": false
         }

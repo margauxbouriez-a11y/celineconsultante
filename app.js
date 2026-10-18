@@ -11,6 +11,39 @@ const STATUTS = {
 const ICONES = { creation: '＋', email_envoye: '✉', reponse: '↩', statut: '⇄', note: '✎' };
 const SECTEURS_SUGGERES = ['Expertise comptable', 'Agences immobilières', "Cabinets d'avocats", 'BTP et artisans',
   'Cliniques et cabinets médicaux', 'E-commerce', 'Hôtellerie et restauration', 'Transport et logistique'];
+// Secteurs proposés dans l'onglet Recherche, avec leurs codes NAF (nomenclature INSEE)
+const SECTEURS_NAF = [
+  ['Expertise comptable', '69.20Z'],
+  ["Cabinets d'avocats", '69.10Z'],
+  ['Conseil en gestion et stratégie', '70.22Z'],
+  ['Agences immobilières', '68.31Z'],
+  ["Architectes", '71.11Z'],
+  ["Bureaux d'études et ingénierie", '71.12B'],
+  ['Agences de communication et publicité', '73.11Z'],
+  ['Services informatiques (ESN)', '62.01Z,62.02A'],
+  ['Courtage en assurance', '66.22Z'],
+  ['Recrutement et intérim', '78.10Z,78.20Z'],
+  ['Organismes de formation', '85.59A'],
+  ['Cabinets médicaux', '86.21Z,86.22C'],
+  ['Cabinets dentaires', '86.23Z'],
+  ['Pharmacies', '47.73Z'],
+  ['Industrie pharmaceutique', '21.10Z,21.20Z'],
+  ['Hôtels', '55.10Z'],
+  ['Restaurants', '56.10A'],
+  ['Construction de bâtiments (BTP)', '41.20A,41.20B'],
+  ['Transport routier de marchandises', '49.41A,49.41B'],
+  ['E-commerce (vente à distance)', '47.91B'],
+];
+// Tranches d'effectif salarié (codes INSEE)
+const TAILLES = [
+  ['01,02,03', '1 à 9', 'TPE'],
+  ['11,12', '10 à 49', 'petite'],
+  ['21,22,31', '50 à 249', 'moyenne'],
+  ['32,41', '250 à 999', 'ETI'],
+  ['42,51,52,53', '1 000 et plus', 'grande'],
+];
+const ETATS_RECHERCHE = { en_attente: 'En attente de n8n', en_cours: 'En cours', terminee: 'Terminée', erreur: 'Erreur' };
+
 const CHAMPS = ['entreprise', 'secteur', 'contact_nom', 'contact_poste', 'email', 'telephone', 'ville', 'site_web',
   'statut', 'prochaine_relance', 'notes'];
 
@@ -121,13 +154,14 @@ async function entrer() {
     return;
   }
   montrer('app');
-  const depart = ['tableau', 'demarchage', 'n8n'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'demarchage';
+  const depart = ['tableau', 'recherche', 'demarchage', 'n8n'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'demarchage';
   afficher(depart);
   etatN8n();
   clearInterval(entrer.t);
   entrer.t = setInterval(() => {
     etatN8n();
     if (!$('#panneau').classList.contains('ouvert') && !$('[data-vue="demarchage"]').hidden) chargerProspects().catch(() => {});
+    if (!$('[data-vue="recherche"]').hidden) chargerRecherches().catch(() => {});
   }, 30000);
 }
 
@@ -141,7 +175,7 @@ function afficher(onglet) {
     else b.removeAttribute('aria-current');
   });
   history.replaceState(null, '', '#' + onglet);
-  const charger = { tableau: chargerTableau, demarchage: chargerProspects, n8n: chargerN8n }[onglet];
+  const charger = { tableau: chargerTableau, recherche: chargerRecherches, demarchage: chargerProspects, n8n: chargerN8n }[onglet];
   enCas(charger)();
 }
 $$('[data-onglet]').forEach((b) => b.addEventListener('click', () => afficher(b.dataset.onglet)));
@@ -216,6 +250,96 @@ function ligneActivite(a) {
   return `<li><span class="ico">${ICONES[a.type] || '•'}</span><span>${qui}${echap(a.detail)}${src}</span><time>${ilYa(a.created_at)}</time></li>`;
 }
 
+// ---------- Recherche d'entreprises ----------
+$('#r-secteur').innerHTML = '<option value="">Choisis un secteur…</option>' +
+  SECTEURS_NAF.map(([nom], i) => `<option value="${i}">${echap(nom)}</option>`).join('') +
+  '<option value="autre">Autre secteur (code NAF)…</option>';
+$('#r-tailles').innerHTML = TAILLES.map(([codes, libelle, type], i) => `
+  <label class="puce"><input type="checkbox" name="taille" value="${i}" ${i === 0 || i === 1 ? 'checked' : ''}>
+  <span>${libelle} salariés <small>${type}</small></span></label>`).join('');
+$('#r-secteur').addEventListener('change', (e) => {
+  const autre = e.target.value === 'autre';
+  $('#r-naf-zone').hidden = !autre;
+  $('#r-naf').required = autre;
+});
+
+const libelleTailles = (indices) => indices.map((i) => TAILLES[i][1]).join(', ') + ' salariés';
+
+$('#form-recherche').addEventListener('submit', enCas(async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const err = $('#err-recherche');
+  err.textContent = '';
+  let secteur, codes;
+  if (f.secteur.value === 'autre') {
+    codes = f.naf.value.toUpperCase().split(/[\s,;]+/).filter(Boolean)
+      .map((c) => (/^\d{4}[A-Z]$/.test(c) ? c.slice(0, 2) + '.' + c.slice(2) : c));
+    if (!codes.length || codes.some((c) => !/^\d{2}\.\d{2}[A-Z]$/.test(c))) {
+      err.textContent = 'Code NAF invalide : il doit ressembler à 70.22Z (plusieurs codes séparés par des virgules).';
+      return;
+    }
+    secteur = 'Code NAF ' + codes.join(', ');
+    codes = codes.join(',');
+  } else {
+    [secteur, codes] = SECTEURS_NAF[Number(f.secteur.value)];
+  }
+  const tailles = $$('input[name="taille"]:checked', f).map((c) => Number(c.value));
+  if (!tailles.length) { err.textContent = "Choisis au moins une taille d'entreprise."; return; }
+  const deps = f.departements.value.toUpperCase().split(/[\s,;]+/).filter(Boolean);
+  if (deps.some((d) => !/^(\d{2,3}|2A|2B)$/.test(d))) {
+    err.textContent = 'Départements : indique des numéros séparés par des virgules, par exemple 75, 92, 69.';
+    return;
+  }
+  verifier(await sb.from('recherches').insert({
+    secteur,
+    codes_naf: codes,
+    tailles: tailles.map((i) => TAILLES[i][0]).join(','),
+    tailles_libelle: libelleTailles(tailles),
+    departements: deps.length ? deps.join(',') : null,
+    nombre: Number(f.nombre.value),
+  }));
+  toast('Recherche enregistrée : n8n va la traiter');
+  chargerRecherches();
+}));
+
+async function chargerRecherches() {
+  const liste = verifier(await sb.from('recherches').select('*').order('id', { ascending: false }).limit(50));
+  $('#vide-recherches').hidden = liste.length > 0;
+  $('#lignes-recherches').innerHTML = liste.map((r) => {
+    let resultat = '<span class="sous">—</span>';
+    if (r.statut === 'terminee') resultat = `<b>${r.nb_ajoutees}</b> ajoutée${r.nb_ajoutees > 1 ? 's' : ''}<div class="sous">${r.nb_trouvees >= 10000 ? '10 000+' : r.nb_trouvees} dans l'annuaire</div>`;
+    if (r.statut === 'erreur') resultat = `<span class="sous">${echap(r.message || 'Erreur inconnue')}</span>`;
+    const actions = [
+      r.statut === 'terminee' && r.nb_ajoutees ? `<button class="lien-action" data-voir="${echap(r.secteur)}">Voir</button>` : '',
+      r.statut === 'erreur' ? `<button class="lien-action" data-relancer="${r.id}">Relancer</button>` : '',
+      r.statut !== 'en_cours' ? `<button class="lien-action danger" data-effacer="${r.id}" aria-label="Effacer cette recherche">Effacer</button>` : '',
+    ].filter(Boolean).join(' · ');
+    return `<tr>
+      <td>${dateCourte(r.created_at)}<div class="sous">${versDate(r.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div></td>
+      <td><b>${echap(r.secteur)}</b></td>
+      <td>${echap(r.tailles_libelle || r.tailles)}</td>
+      <td class="col-option">${echap(r.departements ? 'Dép. ' + r.departements.replaceAll(',', ', ') : 'France entière')}<div class="sous">${r.nombre} max.</div></td>
+      <td><span class="badge etat-r ${r.statut}">${ETATS_RECHERCHE[r.statut] || r.statut}</span></td>
+      <td>${resultat}</td>
+      <td style="white-space:nowrap">${actions}</td>
+    </tr>`;
+  }).join('');
+  $$('[data-voir]').forEach((b) => (b.onclick = () => {
+    etat.secteur = b.dataset.voir; etat.filtreStatut = 'a_contacter'; etat.q = ''; $('#recherche').value = '';
+    afficher('demarchage');
+  }));
+  $$('[data-relancer]').forEach((b) => (b.onclick = enCas(async () => {
+    verifier(await sb.from('recherches').update({ statut: 'en_attente', message: null }).eq('id', b.dataset.relancer));
+    toast('Recherche remise en attente');
+    chargerRecherches();
+  })));
+  $$('[data-effacer]').forEach((b) => (b.onclick = enCas(async () => {
+    if (!confirm('Effacer cette recherche de la liste ? Les entreprises déjà ajoutées restent dans Démarchage.')) return;
+    verifier(await sb.from('recherches').delete().eq('id', b.dataset.effacer));
+    chargerRecherches();
+  })));
+}
+
 // ---------- Démarchage ----------
 async function chargerProspects() {
   etat.prospects = await lireProspects();
@@ -266,7 +390,7 @@ function rendreLignes() {
     const enRetard = suivi && p.prochaine_relance <= auj;
     return `<tr data-id="${p.id}" tabindex="0">
       <td><div class="nom-ent">${echap(p.entreprise)}${p.source === 'n8n' ? '<span class="src-n8n">n8n</span>' : ''}</div>
-        <div class="sous">${echap([p.secteur, p.ville].filter(Boolean).join(', '))}</div></td>
+        <div class="sous">${echap([p.secteur, p.ville, p.effectif].filter(Boolean).join(', '))}</div></td>
       <td><div>${echap(p.contact_nom || '—')}${p.contact_poste ? `<span class="sous">, ${echap(p.contact_poste)}</span>` : ''}</div>
         <div class="sous">${echap(p.email || p.telephone || '')}</div></td>
       <td>${badge(p.statut)}</td>
@@ -311,7 +435,9 @@ function ouvrir(p = null) {
   f.reset();
   if (p) for (const el of f.elements) if (el.name) el.value = p[el.name] ?? '';
   $('#panneau-titre').textContent = p ? p.entreprise : 'Nouvelle entreprise';
-  $('#panneau-sous').innerHTML = p ? `${badge(p.statut)} <span style="margin-left:6px">${p.emails_envoyes} email${p.emails_envoyes > 1 ? 's' : ''} envoyé${p.emails_envoyes > 1 ? 's' : ''}</span>` : '';
+  $('#panneau-sous').innerHTML = p ? `${badge(p.statut)} <span style="margin-left:6px">${p.emails_envoyes} email${p.emails_envoyes > 1 ? 's' : ''} envoyé${p.emails_envoyes > 1 ? 's' : ''}</span>`
+    + (p.effectif || p.siren ? `<div style="margin-top:4px">${echap([p.effectif, p.siren && 'SIREN ' + p.siren].filter(Boolean).join(' · '))}</div>` : '') : '';
+  if (p) $('#trouver-site').href = 'https://www.google.com/search?q=' + encodeURIComponent([p.entreprise, p.ville, 'site officiel contact'].filter(Boolean).join(' '));
   $('#supprimer').hidden = !p;
   $('#zone-suivi').hidden = !p;
   $('#zone-historique').hidden = !p;
@@ -414,9 +540,16 @@ async function chargerN8n() {
     ['relances_du_jour', "Entreprises à relancer aujourd'hui (p_limit, p_max_emails)."],
     ['importer_prospects', 'Ajoute ou met à jour une liste d\'entreprises (ex. depuis Google Sheets).'],
     ['enregistrer_reponse', 'Quand une entreprise répond : passe son statut à « A répondu ».'],
+    ['recherche_suivante', "Prochaine recherche lancée depuis l'onglet Recherche (secteur, taille, zone)."],
+    ['ajouter_resultats_recherche', 'Ajoute les entreprises trouvées (sans doublon) et clôt la recherche.'],
   ];
   $('#points').innerHTML = points.map(([a, b]) => `<tr><td>POST /rest/v1/rpc/${a}</td><td>${b}</td></tr>`).join('');
 }
+
+$('#telecharger-recherche').onclick = enCas(async () => {
+  const wf = await fetch('n8n/workflow-recherche.json').then((r) => r.text());
+  telecharger(avecMonProjet(wf), 'workflow-recherche-entreprises.json', 'application/json');
+});
 
 $('#telecharger-workflow').onclick = enCas(async () => {
   const wf = await fetch('n8n/workflow-demarchage.json').then((r) => r.text());
