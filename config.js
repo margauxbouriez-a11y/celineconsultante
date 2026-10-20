@@ -7,4 +7,6 @@ window.PLATEFORME = {
   sousTitre: 'IA & automatisation',
   supabaseUrl: '',      // ex. 'https://abcdefghijkl.supabase.co'
   supabaseCleAnon: '',  // ex. 'eyJhbGciOi...'
+  // Adresse du workflow n8n « Prospection – Recherche d’entreprises et emails » (lance la recherche tout de suite)
+  n8nWebhookRecherche: 'https://margauxbouriez2.app.n8n.cloud/webhook/prospection-recherche',
 };

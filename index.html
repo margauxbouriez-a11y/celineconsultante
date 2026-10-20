@@ -117,14 +117,12 @@
           <select name="nombre">
             <option value="10">10</option>
             <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
           </select>
         </label>
         <div class="err large" id="err-recherche" role="alert"></div>
         <div class="large actions-recherche">
           <button class="btn principal">Lancer la recherche</button>
-          <span class="sous">n8n traite les recherches toutes les heures, de 8 h à 20 h.</span>
+          <span class="sous">La recherche démarre tout de suite (2 à 5 minutes). Relance-la avec les mêmes critères pour obtenir les entreprises suivantes.</span>
         </div>
       </form>
 
@@ -143,7 +141,7 @@
         </div>
       </div>
 
-      <p class="avertissement" style="margin-top:18px">L'annuaire officiel donne le nom de l'entreprise, sa ville, sa taille et le nom de son dirigeant, mais <b>pas son email</b>. Les entreprises trouvées arrivent en « À contacter » : ouvre-les dans Démarchage, utilise le bouton « Trouver son site » et complète l'email. Le premier email automatique partira ensuite.</p>
+      <p class="avertissement" style="margin-top:18px">Pour chaque entreprise, n8n cherche l'email du dirigeant avec Apollo, puis sur le site web de l'entreprise. Les entreprises avec un email reçoivent automatiquement le premier email depuis ta boîte Gmail (du lundi au vendredi, de 9 h à 17 h). Pour celles sans email, ouvre leur fiche dans Démarchage et utilise « Trouver son site ».</p>
     </section>
 
     <!-- ===== Démarchage ===== -->

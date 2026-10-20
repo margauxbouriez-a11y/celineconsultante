@@ -298,7 +298,11 @@ $('#form-recherche').addEventListener('submit', enCas(async (e) => {
     departements: deps.length ? deps.join(',') : null,
     nombre: Number(f.nombre.value),
   }));
-  toast('Recherche enregistrée : n8n va la traiter');
+  if (C.n8nWebhookRecherche) {
+    // prévient n8n pour qu'il traite la recherche tout de suite (sinon il la prend à l'heure suivante)
+    fetch(C.n8nWebhookRecherche, { method: 'POST', mode: 'no-cors' }).catch(() => {});
+  }
+  toast('Recherche lancée : les entreprises arrivent dans quelques minutes');
   chargerRecherches();
 }));
 
@@ -307,7 +311,9 @@ async function chargerRecherches() {
   $('#vide-recherches').hidden = liste.length > 0;
   $('#lignes-recherches').innerHTML = liste.map((r) => {
     let resultat = '<span class="sous">—</span>';
-    if (r.statut === 'terminee') resultat = `<b>${r.nb_ajoutees}</b> ajoutée${r.nb_ajoutees > 1 ? 's' : ''}<div class="sous">${r.nb_trouvees >= 10000 ? '10 000+' : r.nb_trouvees} dans l'annuaire</div>`;
+    if (r.statut === 'terminee') resultat = `<b>${r.nb_ajoutees}</b> ajoutée${r.nb_ajoutees > 1 ? 's' : ''}`
+      + (r.nb_emails != null ? ` · <b>${r.nb_emails}</b> avec email` : '')
+      + `<div class="sous">${r.nb_trouvees >= 10000 ? '10 000+' : r.nb_trouvees} dans l'annuaire</div>`;
     if (r.statut === 'erreur') resultat = `<span class="sous">${echap(r.message || 'Erreur inconnue')}</span>`;
     const actions = [
       r.statut === 'terminee' && r.nb_ajoutees ? `<button class="lien-action" data-voir="${echap(r.secteur)}">Voir</button>` : '',

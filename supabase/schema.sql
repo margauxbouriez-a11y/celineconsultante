@@ -53,6 +53,7 @@ create table if not exists public.recherches (
                 check (statut in ('en_attente','en_cours','terminee','erreur')),
   nb_trouvees   integer,
   nb_ajoutees   integer,
+  nb_emails     integer,
   message       text,
   created_at    timestamptz not null default now(),
   traitee_at    timestamptz
@@ -62,6 +63,7 @@ create table if not exists public.recherches (
 alter table public.prospects add column if not exists siren text unique;
 alter table public.prospects add column if not exists effectif text;
 alter table public.prospects add column if not exists recherche_id bigint references public.recherches(id) on delete set null;
+alter table public.recherches add column if not exists nb_emails integer;
 
 create index if not exists idx_prospects_statut on public.prospects(statut);
 create index if not exists idx_activites_prospect on public.activites(prospect_id);
@@ -155,7 +157,10 @@ begin
   return p;
 end $$;
 
--- Une entreprise a répondu
+-- Une entreprise a répondu (appelée par n8n quand un email arrive dans ta boîte)
+-- p_statut = 'perdu' si la personne demande à ne plus être contactée.
+-- Un statut plus avancé (RDV pris, cliente) n'est jamais remplacé. Renvoie null si l'expéditeur n'est pas un prospect.
+drop function if exists public.enregistrer_reponse(text, text, text);
 create or replace function public.enregistrer_reponse(
   p_email   text,
   p_extrait text default null,
@@ -163,14 +168,21 @@ create or replace function public.enregistrer_reponse(
 ) returns public.prospects language plpgsql as $$
 declare p public.prospects;
 begin
+  select * into p from public.prospects where email = lower(trim(p_email));
+  if not found then return null; end if;
   perform set_config('plateforme.silence', 'oui', true);  -- l'historique note déjà la réponse
-  update public.prospects set statut = p_statut, prochaine_relance = null
-  where email = lower(trim(p_email))
+  update public.prospects set
+    statut = case when p_statut = 'perdu' then 'perdu'
+                  when statut in ('a_contacter', 'contacte', 'relance') then coalesce(nullif(p_statut, ''), 'repondu')
+                  else statut end,
+    prochaine_relance = null
+  where id = p.id
   returning * into p;
-  if not found then raise exception 'Aucun prospect avec l''email %', p_email; end if;
   insert into public.activites(prospect_id, type, detail, source)
   values (p.id, 'reponse',
-          case when p_extrait is null then 'Réponse reçue' else 'Réponse reçue : ' || left(p_extrait, 500) end,
+          case when p_statut = 'perdu' then 'Ne souhaite plus être contacté(e)'
+               when p_extrait is null then 'Réponse reçue'
+               else 'Réponse reçue : ' || left(p_extrait, 500) end,
           'n8n');
   return p;
 end $$;
@@ -269,7 +281,9 @@ declare
   r public.recherches;
   e jsonb;
   v_siren text;
+  v_email text;
   n int := 0;
+  n_emails int := 0;
 begin
   select * into r from public.recherches where id = p_recherche_id;
   if not found then raise exception 'Recherche % introuvable', p_recherche_id; end if;
@@ -283,21 +297,29 @@ begin
   for e in select * from jsonb_array_elements(coalesce(p_lignes, '[]'::jsonb)) loop
     v_siren := nullif(trim(e->>'siren'), '');
     continue when v_siren is null or exists (select 1 from public.prospects where siren = v_siren);
-    insert into public.prospects(entreprise, siren, secteur, contact_nom, contact_poste, ville, effectif, recherche_id, source)
+    v_email := nullif(lower(trim(e->>'email')), '');
+    if v_email is not null and (v_email !~ '^[^@\s]+@[^@\s]+\.[a-z]{2,}$'
+        or exists (select 1 from public.prospects where email = v_email)) then
+      v_email := null;  -- email invalide ou déjà utilisé par une autre entreprise
+    end if;
+    insert into public.prospects(entreprise, siren, secteur, contact_nom, contact_poste, email, site_web, ville, effectif, recherche_id, source)
     values (coalesce(nullif(trim(e->>'entreprise'), ''), 'SIREN ' || v_siren), v_siren, r.secteur,
             nullif(trim(e->>'contact_nom'), ''), nullif(trim(e->>'contact_poste'), ''),
+            v_email, nullif(trim(e->>'site_web'), ''),
             nullif(trim(e->>'ville'), ''), nullif(trim(e->>'effectif'), ''), r.id, 'n8n');
     n := n + 1;
+    if v_email is not null then n_emails := n_emails + 1; end if;
   end loop;
 
   update public.recherches set
     statut = 'terminee',
     nb_trouvees = coalesce(p_nb_trouvees, jsonb_array_length(coalesce(p_lignes, '[]'::jsonb))),
     nb_ajoutees = n,
+    nb_emails = n_emails,
     message = null,
     traitee_at = now()
   where id = r.id;
-  return jsonb_build_object('ajoutees', n);
+  return jsonb_build_object('ajoutees', n, 'avec_email', n_emails);
 end $$;
 
 -- ---------- Sécurité ----------
