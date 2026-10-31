@@ -1,4 +1,4 @@
-// Plateforme de gestion — version GitHub Pages + Supabase
+// Plateforme de gestion — version GitHub Pages + n8n (données et connexion dans n8n, plus de Supabase)
 const STATUTS = {
   a_contacter: 'À contacter',
   contacte: 'Contactée',
@@ -54,6 +54,25 @@ const echap = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 const C = window.PLATEFORME || {};
 const etat = { prospects: [], filtreStatut: '', secteur: '', q: '', courant: null };
 let sb = null;
+// ---------- API n8n (remplace Supabase) ----------
+const API = C.n8nApi || 'https://margauxbouriez2.app.n8n.cloud/webhook/prospection-api';
+let jeton = null;
+try { jeton = localStorage.getItem('plateforme-jeton'); } catch { /* stockage indisponible */ }
+let cache = null;
+function garderJeton(j) {
+  jeton = j;
+  try { if (j) localStorage.setItem('plateforme-jeton', j); else localStorage.removeItem('plateforme-jeton'); } catch { /* ignore */ }
+}
+async function api(action, params = {}) {
+  let r;
+  try {
+    r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action, jeton, ...params }) }).then((x) => x.json());
+  } catch { throw new Error('Impossible de joindre n8n. Vérifie ta connexion internet puis réessaie.'); }
+  if (r && r.session === false) { garderJeton(null); montrer('ecran-connexion'); }
+  if (!r || r.ok === false) throw new Error((r && r.erreur) || 'Erreur n8n');
+  return r;
+}
+async function tout() { cache = await api('tout'); etatN8n(); return cache; }
 
 // ---------- Réglages Supabase ----------
 function lireReglages() {
@@ -61,7 +80,7 @@ function lireReglages() {
   try { local = JSON.parse(localStorage.getItem('plateforme-supabase') || '{}'); } catch { /* stockage indisponible */ }
   return { url: (C.supabaseUrl || local.url || '').replace(/\/+$/, ''), cle: C.supabaseCleAnon || local.cle || '' };
 }
-const reglages = lireReglages();
+const reglages = { url: API };
 
 // ---------- Outils ----------
 function verifier({ data, error }) {
@@ -121,38 +140,63 @@ $('#form-config').addEventListener('submit', (e) => {
 $('#form-connexion').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('#err-connexion').textContent = '';
-  const { error } = await sb.auth.signInWithPassword({ email: e.target.email.value.trim(), password: e.target.mdp.value });
-  if (error) {
-    $('#err-connexion').textContent = error.message.includes('Invalid login') ? 'Email ou mot de passe incorrect.' : error.message;
-    return;
-  }
+  try {
+    const r = await api('connexion', { email: e.target.email.value.trim(), mdp: e.target.mdp.value });
+    garderJeton(r.jeton);
+  } catch (err) { $('#err-connexion').textContent = err.message; return; }
   entrer();
 });
 
+// Première connexion ou mot de passe oublié : un code arrive par email
+(function () {
+  const f = $('#form-connexion');
+  const lien = document.createElement('button');
+  lien.type = 'button';
+  lien.className = 'lien-action';
+  lien.textContent = 'Première connexion ou mot de passe oublié ?';
+  lien.style.cssText = 'justify-self:center;margin-top:4px';
+  f.appendChild(lien);
+  const g = document.createElement('form');
+  g.className = 'boite';
+  g.id = 'form-code';
+  g.style.display = 'none';
+  g.innerHTML = `<h1>Choisir mon mot de passe</h1>
+    <p>Indique ton email : tu vas recevoir un code à 6 chiffres.</p>
+    <label>Email<input type="email" name="email" autocomplete="username" required></label>
+    <button type="button" class="btn" id="envoyer-code" style="justify-content:center">Recevoir un code</button>
+    <label>Code reçu par email<input type="text" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+    <label>Nouveau mot de passe (8 caractères minimum)<input type="password" name="mdp" autocomplete="new-password" minlength="8"></label>
+    <div class="err" id="err-code" role="alert"></div>
+    <button class="btn principal" style="justify-content:center">Enregistrer et me connecter</button>
+    <button type="button" class="lien-action" id="retour-connexion" style="justify-self:center">Retour à la connexion</button>`;
+  f.parentNode.appendChild(g);
+  lien.onclick = () => { f.style.display = 'none'; g.style.display = ''; g.email.value = f.email.value; };
+  $('#retour-connexion').onclick = () => { g.style.display = 'none'; f.style.display = ''; };
+  $('#envoyer-code').onclick = async () => {
+    $('#err-code').textContent = '';
+    if (!g.email.reportValidity()) return;
+    try { const r = await api('code', { email: g.email.value.trim() }); $('#err-code').textContent = r.message; } catch (err) { $('#err-code').textContent = err.message; }
+  };
+  g.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('#err-code').textContent = '';
+    try {
+      const r = await api('mdp', { email: g.email.value.trim(), code: g.code.value.trim(), mdp: g.mdp.value });
+      garderJeton(r.jeton);
+      g.style.display = 'none';
+      f.style.display = '';
+      entrer();
+    } catch (err) { $('#err-code').textContent = err.message; }
+  });
+})();
+
 async function demarrer() {
-  if (!reglages.url || !reglages.cle) return montrer('ecran-config');
-  if (!window.supabase) {
-    montrer('ecran-connexion');
-    $('#err-connexion').textContent = 'Impossible de charger Supabase. Vérifie ta connexion internet puis recharge la page.';
-    return;
-  }
-  sb = window.supabase.createClient(reglages.url, reglages.cle);
-  const { data } = await sb.auth.getSession();
-  if (data.session) entrer();
-  else montrer('ecran-connexion');
+  if (!jeton) return montrer('ecran-connexion');
+  entrer();
 }
 
 async function entrer() {
-  const membre = await sb.from('equipe').select('email').limit(1);
-  if (membre.error || !membre.data.length) {
-    montrer('ecran-connexion');
-    const { data } = await sb.auth.getUser();
-    $('#err-connexion').textContent = membre.error && membre.error.code === 'PGRST205'
-      ? 'Les tables n\'existent pas encore : exécute le fichier supabase/schema.sql dans Supabase.'
-      : `Le compte ${data.user?.email || ''} n'a pas accès : ajoute cet email dans la table « equipe » de Supabase.`;
-    await sb.auth.signOut();
-    return;
-  }
+  try { await api('moi'); } catch (e) { montrer('ecran-connexion'); $('#err-connexion').textContent = e.message; return; }
   montrer('app');
   const depart = ['tableau', 'recherche', 'demarchage', 'n8n'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'demarchage';
   afficher(depart);
@@ -162,10 +206,10 @@ async function entrer() {
     etatN8n();
     if (!$('#panneau').classList.contains('ouvert') && !$('[data-vue="demarchage"]').hidden) chargerProspects().catch(() => {});
     if (!$('[data-vue="recherche"]').hidden) chargerRecherches().catch(() => {});
-  }, 30000);
+  }, 300000); // toutes les 5 minutes (chaque lecture compte comme une exécution n8n)
 }
 
-$('#deconnexion').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+$('#deconnexion').onclick = async () => { try { await api('deconnexion'); } catch { /* ignore */ } garderJeton(null); location.reload(); };
 
 // ---------- Navigation ----------
 function afficher(onglet) {
@@ -182,7 +226,7 @@ $$('[data-onglet]').forEach((b) => b.addEventListener('click', () => afficher(b.
 
 // ---------- Données ----------
 async function lireProspects() {
-  return verifier(await sb.from('prospects').select('*').order('updated_at', { ascending: false }));
+  return (await tout()).prospects;
 }
 function calculerStats(prospects) {
   const parStatut = Object.fromEntries(Object.keys(STATUTS).map((s) => [s, 0]));
@@ -210,11 +254,10 @@ function calculerStats(prospects) {
 async function chargerTableau() {
   const depuis = new Date(Date.now() - 13 * 864e5);
   depuis.setHours(0, 0, 0, 0);
-  const [prospects, envois, activites] = await Promise.all([
-    lireProspects(),
-    sb.from('activites').select('created_at').eq('type', 'email_envoye').gte('created_at', depuis.toISOString()).then(verifier),
-    sb.from('activites').select('*, prospects(entreprise)').order('id', { ascending: false }).limit(12).then(verifier),
-  ]);
+  const t = await api('tableau');
+  cache = { ...(cache || {}), prospects: t.prospects, dernierN8n: t.dernierN8n };
+  etatN8n();
+  const prospects = t.prospects, envois = t.envois, activites = t.recentes;
   const s = calculerStats(prospects);
   const il7j = Date.now() - 7 * 864e5;
   $('#k-total').textContent = s.total;
@@ -240,7 +283,7 @@ async function chargerTableau() {
     : '<p class="sous">Les secteurs apparaîtront dès que tu auras des prospects.</p>';
 
   $('#flux').innerHTML = activites.length
-    ? activites.map((a) => ligneActivite({ ...a, entreprise: a.prospects?.entreprise })).join('')
+    ? activites.map((a) => ligneActivite(a)).join('')
     : "<li><span class=\"ico\">＋</span><span>Aucune activité pour l'instant. Ajoute une entreprise ou lance ton workflow n8n.</span><span></span></li>";
 }
 
@@ -290,14 +333,14 @@ $('#form-recherche').addEventListener('submit', enCas(async (e) => {
     err.textContent = 'Départements : indique des numéros séparés par des virgules, par exemple 75, 92, 69.';
     return;
   }
-  verifier(await sb.from('recherches').insert({
+  await api('lancer_recherche', { data: {
     secteur,
     codes_naf: codes,
     tailles: tailles.map((i) => TAILLES[i][0]).join(','),
     tailles_libelle: libelleTailles(tailles),
     departements: deps.length ? deps.join(',') : null,
     nombre: Number(f.nombre.value),
-  }));
+  } });
   if (C.n8nWebhookRecherche) {
     // prévient n8n pour qu'il traite la recherche tout de suite (sinon il la prend à l'heure suivante)
     fetch(C.n8nWebhookRecherche, { method: 'POST', mode: 'no-cors' }).catch(() => {});
@@ -307,7 +350,7 @@ $('#form-recherche').addEventListener('submit', enCas(async (e) => {
 }));
 
 async function chargerRecherches() {
-  const liste = verifier(await sb.from('recherches').select('*').order('id', { ascending: false }).limit(50));
+  const liste = (await tout()).recherches;
   $('#vide-recherches').hidden = liste.length > 0;
   $('#lignes-recherches').innerHTML = liste.map((r) => {
     let resultat = '<span class="sous">—</span>';
@@ -335,13 +378,13 @@ async function chargerRecherches() {
     afficher('demarchage');
   }));
   $$('[data-relancer]').forEach((b) => (b.onclick = enCas(async () => {
-    verifier(await sb.from('recherches').update({ statut: 'en_attente', message: null }).eq('id', b.dataset.relancer));
+    await api('relancer_recherche', { id: Number(b.dataset.relancer) });
     toast('Recherche remise en attente');
     chargerRecherches();
   })));
   $$('[data-effacer]').forEach((b) => (b.onclick = enCas(async () => {
     if (!confirm('Effacer cette recherche de la liste ? Les entreprises déjà ajoutées restent dans Démarchage.')) return;
-    verifier(await sb.from('recherches').delete().eq('id', b.dataset.effacer));
+    await api('effacer_recherche', { id: Number(b.dataset.effacer) });
     chargerRecherches();
   })));
 }
@@ -466,7 +509,7 @@ $('#voile').onclick = fermer;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermer(); });
 
 async function chargerHistorique(id) {
-  const a = verifier(await sb.from('activites').select('*').eq('prospect_id', id).order('id', { ascending: false }));
+  const a = (await api('historique', { id })).activites;
   $('#historique').innerHTML = a.map((x) => ligneActivite(x)).join('') ||
     "<li><span></span><span class=\"sous\">Rien pour l'instant.</span><span></span></li>";
 }
@@ -484,12 +527,11 @@ $('#enregistrer').onclick = enCas(async () => {
   const data = {};
   for (const k of CHAMPS) data[k] = (brut[k] ?? '').trim() === '' ? null : brut[k].trim();
   if (etat.courant) {
-    verifier(await sb.from('prospects').update(data).eq('id', etat.courant.id));
+    await api('enregistrer', { id: etat.courant.id, data });
     toast('Modifications enregistrées');
   } else {
     data.statut = data.statut || 'a_contacter';
-    data.source = 'manuel';
-    verifier(await sb.from('prospects').insert(data));
+    await api('enregistrer', { data });
     toast('Entreprise ajoutée');
   }
   fermer();
@@ -498,7 +540,7 @@ $('#enregistrer').onclick = enCas(async () => {
 
 $('#supprimer').onclick = enCas(async () => {
   if (!etat.courant || !confirm(`Supprimer ${etat.courant.entreprise} et son historique ?`)) return;
-  verifier(await sb.from('prospects').delete().eq('id', etat.courant.id));
+  await api('supprimer', { id: etat.courant.id });
   toast('Entreprise supprimée');
   fermer();
   chargerProspects();
@@ -506,13 +548,13 @@ $('#supprimer').onclick = enCas(async () => {
 
 $('#noter-email').onclick = enCas(async () => {
   const id = etat.courant.id;
-  verifier(await sb.rpc('enregistrer_email', { p_id: id, p_source: 'manuel' }));
+  await api('noter_email', { id });
   toast('Email noté, relance programmée');
   rafraichirCourant(id);
 });
 $$('[data-statut-rapide]').forEach((b) => b.addEventListener('click', enCas(async () => {
   const id = etat.courant.id;
-  verifier(await sb.from('prospects').update({ statut: b.dataset.statutRapide }).eq('id', id));
+  await api('statut', { id, statut: b.dataset.statutRapide });
   toast(`Statut : ${STATUTS[b.dataset.statutRapide]}`);
   rafraichirCourant(id);
 })));
@@ -521,15 +563,14 @@ $('#form-note').addEventListener('submit', enCas(async (e) => {
   const texte = $('#note-texte').value.trim();
   if (!texte) return;
   const id = etat.courant.id;
-  verifier(await sb.from('activites').insert({ prospect_id: id, type: 'note', detail: texte }));
+  await api('note', { id, texte });
   $('#note-texte').value = '';
   chargerHistorique(id);
 }));
 
 // ---------- n8n ----------
 async function etatN8n() {
-  const { data } = await sb.from('activites').select('created_at').eq('source', 'n8n').order('id', { ascending: false }).limit(1);
-  const dernier = data && data[0] && data[0].created_at;
+  const dernier = cache && cache.dernierN8n;
   $('#pastille-n8n').classList.toggle('ok', !!dernier);
   $('#texte-n8n').textContent = dernier ? `n8n : dernier envoi ${ilYa(dernier)}` : 'n8n : aucun envoi reçu';
 }
@@ -549,7 +590,7 @@ async function chargerN8n() {
     ['recherche_suivante', "Prochaine recherche lancée depuis l'onglet Recherche (secteur, taille, zone)."],
     ['ajouter_resultats_recherche', 'Ajoute les entreprises trouvées (sans doublon) et clôt la recherche.'],
   ];
-  $('#points').innerHTML = points.map(([a, b]) => `<tr><td>POST /rest/v1/rpc/${a}</td><td>${b}</td></tr>`).join('');
+  $('#points').innerHTML = points.map(([a, b]) => `<tr><td>n8n · ${a}</td><td>${b}</td></tr>`).join('');
 }
 
 $('#telecharger-recherche').onclick = enCas(async () => {
