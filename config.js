@@ -1,5 +1,5 @@
 // Réglages de la plateforme.
-// Les données et la connexion passent maintenant par n8n (workflow « Prospection – API (remplace Supabase) »).
+// Les données et la connexion passent par n8n (workflow « Prospection – API »).
 window.PLATEFORME = {
   nom: 'Prospection',
   sousTitre: 'IA & automatisation',

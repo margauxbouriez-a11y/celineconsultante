@@ -11,20 +11,6 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f2e2a'/%3E%3Ccircle cx='10' cy='16' r='4' fill='%23e8a33d'/%3E%3Ccircle cx='22' cy='10' r='3' fill='%23fff'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%23fff'/%3E%3Cpath d='M13.5 14.5 19.5 11M13.5 17.5l6 3.5' stroke='%23fff' stroke-width='1.6'/%3E%3C/svg%3E">
 </head>
 <body>
-<!-- Configuration (première ouverture) -->
-<div class="ecran" id="ecran-config" hidden>
-  <form class="boite large" id="form-config">
-    <svg width="40" height="40" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0f2e2a"/><circle cx="10" cy="16" r="4" fill="#e8a33d"/><circle cx="22" cy="10" r="3" fill="#fff"/><circle cx="22" cy="22" r="3" fill="#fff"/><path d="M13.5 14.5 19.5 11M13.5 17.5l6 3.5" stroke="#fff" stroke-width="1.6"/></svg>
-    <h1>Relier la plateforme à Supabase</h1>
-    <p>Une seule fois : colle les deux informations de ton projet Supabase. Tu les trouves dans <b>Project Settings → API</b>.</p>
-    <label>Adresse du projet (Project URL)<input type="url" name="url" placeholder="https://abcdefghijkl.supabase.co" required></label>
-    <label>Clé publique (anon public)<input type="text" name="cle" placeholder="eyJhbGciOi…" required></label>
-    <div class="err" id="err-config" role="alert"></div>
-    <button class="btn principal" style="justify-content:center">Enregistrer</button>
-    <p style="margin:0;font-size:13px">Ces réglages restent sur cet appareil. Pour qu'ils s'appliquent partout, ajoute-les dans le fichier <code style="display:inline;padding:1px 5px">config.js</code> du dépôt.</p>
-  </form>
-</div>
-
 <!-- Connexion -->
 <div class="ecran" id="ecran-connexion" hidden>
   <form class="boite" id="form-connexion">
@@ -137,11 +123,11 @@
         </div>
         <div class="vide" id="vide-recherches" hidden>
           <h3>Aucune recherche pour l'instant</h3>
-          <p>Lance ta première recherche ci-dessus. Pense à importer le workflow « Recherche d'entreprises » dans n8n (onglet Automatisation n8n).</p>
+          <p>Lance ta première recherche ci-dessus : n8n la traite tout de suite, puis vérifie toutes les heures (8 h – 20 h) s'il y en a d'autres.</p>
         </div>
       </div>
 
-      <p class="avertissement" style="margin-top:18px">Pour chaque entreprise, n8n cherche l'email du dirigeant avec Apollo, puis sur le site web de l'entreprise. Les entreprises avec un email reçoivent automatiquement le premier email depuis ta boîte Gmail (du lundi au vendredi, de 9 h à 17 h). Pour celles sans email, ouvre leur fiche dans Démarchage et utilise « Trouver son site ».</p>
+      <p class="avertissement" style="margin-top:18px">Pour chaque entreprise, n8n cherche son site officiel (Firecrawl) et y lit l'email publié. Les entreprises avec un email reçoivent automatiquement le premier email depuis ta boîte Gmail (du lundi au vendredi, de 9 h à 17 h). Pour celles sans email, ouvre leur fiche dans Démarchage et utilise « Trouver son site ».</p>
     </section>
 
     <!-- ===== Démarchage ===== -->
@@ -182,42 +168,16 @@
       <div class="entete">
         <div>
           <h1>Automatisation n8n</h1>
-          <p>Relie ton workflow d'envoi d'emails à la plateforme : chaque email envoyé met à jour l'onglet Démarchage.</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" id="telecharger-recherche">Workflow « Recherche d'entreprises »</button>
-          <button class="btn ambre" id="telecharger-workflow">Workflow « Démarchage »</button>
+          <p>Toute la plateforme tourne dans n8n : les données sont dans la Data table « Prospection – base » et les workflows ci-dessous font le travail automatiquement.</p>
         </div>
       </div>
 
-      <div class="etapes-n8n">
-        <div class="carte etape-n8n">
-          <h2>Ajoute ton compte Supabase dans n8n</h2>
-          <p>Dans n8n : <b>Credentials → Add credential → Supabase API</b>. Colle l'adresse ci-dessous dans « Host » et la clé <b>service_role</b> de Supabase (Project Settings → API) dans « Service Role Secret ». Cette clé reste dans n8n, ne la mets nulle part ailleurs.</p>
-          <div class="champ-copie"><code id="url-supabase"></code><button class="btn petit" data-copier="url-supabase">Copier</button></div>
-        </div>
+      <div class="etapes-n8n" id="workflows-n8n"></div>
 
-        <div class="carte etape-n8n">
-          <h2>Ajoute ce nœud juste après ton nœud d'envoi d'email</h2>
-          <p>Copie le bloc, puis colle-le (Ctrl + V / Cmd + V) dans ton workflow n8n. Relie la sortie de ton nœud « Gmail » ou « Send Email » à ce nouveau nœud et choisis ton compte Supabase dans « Credential ». Si ton nœud qui contient l'email du destinataire ne s'appelle pas « Prospects à contacter », remplace ce nom dans le champ Body.</p>
-          <div>
-            <pre id="noeud-json"></pre>
-            <button class="btn" data-copier="noeud-json">Copier le nœud</button>
-          </div>
-        </div>
-
-        <div class="carte etape-n8n">
-          <h2>Importe le workflow « Recherche d'entreprises »</h2>
-          <p>Télécharge-le avec le bouton en haut de la page, puis dans n8n : <b>Import from File</b>. Choisis ton compte Supabase dans les nœuds «&nbsp;Recherche en attente&nbsp;» et «&nbsp;Ajouter à la plateforme&nbsp;», puis active le workflow. Il regarde toutes les heures (8 h – 20 h) si tu as lancé une recherche dans l'onglet Recherche. L'annuaire des entreprises est public et gratuit : aucun compte à créer.</p>
-        </div>
-
-        <div class="carte etape-n8n">
-          <h2>Lance ton workflow une fois</h2>
-          <p>Dès que le premier email part, l'entreprise apparaît dans Démarchage avec le statut « Contactée » et une relance prévue 4 jours plus tard. Le témoin en bas de la barre latérale passe au vert.</p>
-          <div>
-            <table class="points"><tbody id="points"></tbody></table>
-          </div>
-        </div>
+      <div class="carte" style="margin-top:18px;padding:20px 22px">
+        <h2>Actions de l'API</h2>
+        <p>Le workflow « Prospection – API » reçoit les demandes de cette page et des autres workflows. Il n'y a rien à configurer : ces actions sont déjà branchées.</p>
+        <table class="points"><tbody id="points"></tbody></table>
       </div>
     </section>
   </main>

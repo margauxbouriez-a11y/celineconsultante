@@ -1,4 +1,4 @@
-// Plateforme de gestion — version GitHub Pages + n8n (données et connexion dans n8n, plus de Supabase)
+// Plateforme de gestion — GitHub Pages + n8n (données et connexion dans n8n)
 const STATUTS = {
   a_contacter: 'À contacter',
   contacte: 'Contactée',
@@ -53,8 +53,7 @@ const echap = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 
 const C = window.PLATEFORME || {};
 const etat = { prospects: [], filtreStatut: '', secteur: '', q: '', courant: null };
-let sb = null;
-// ---------- API n8n (remplace Supabase) ----------
+// ---------- API n8n ----------
 const API = C.n8nApi || 'https://margauxbouriez2.app.n8n.cloud/webhook/prospection-api';
 let jeton = null;
 try { jeton = localStorage.getItem('plateforme-jeton'); } catch { /* stockage indisponible */ }
@@ -74,25 +73,7 @@ async function api(action, params = {}) {
 }
 async function tout() { cache = await api('tout'); etatN8n(); return cache; }
 
-// ---------- Réglages Supabase ----------
-function lireReglages() {
-  let local = {};
-  try { local = JSON.parse(localStorage.getItem('plateforme-supabase') || '{}'); } catch { /* stockage indisponible */ }
-  return { url: (C.supabaseUrl || local.url || '').replace(/\/+$/, ''), cle: C.supabaseCleAnon || local.cle || '' };
-}
-const reglages = { url: API };
-
 // ---------- Outils ----------
-function verifier({ data, error }) {
-  if (error) {
-    if (error.code === '23505') throw new Error('Une entreprise avec cet email existe déjà.');
-    if (error.code === '42501') throw new Error("Ton compte n'a pas accès aux données. Vérifie que ton email est dans la table « equipe ».");
-    if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Les tables n\'existent pas encore : exécute le fichier supabase/schema.sql dans Supabase.');
-    throw new Error(error.message || 'Erreur Supabase');
-  }
-  return data;
-}
-
 function toast(msg, erreur = false) {
   const t = $('#toast');
   t.textContent = msg;
@@ -119,23 +100,11 @@ const badge = (s) => `<span class="badge" style="--c:var(--s-${s})">${STATUTS[s]
 
 // ---------- Écrans ----------
 function montrer(id) {
-  ['ecran-config', 'ecran-connexion', 'app'].forEach((x) => ($('#' + x).hidden = x !== id));
+  ['ecran-connexion', 'app'].forEach((x) => ($('#' + x).hidden = x !== id));
 }
 $$('.nom-marque').forEach((el) => (el.textContent = C.nom || 'Plateforme'));
 $('.sous-marque').textContent = C.sousTitre || '';
 document.title = `${C.nom || 'Plateforme'} — gestion`;
-
-$('#form-config').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const url = e.target.url.value.trim().replace(/\/+$/, '');
-  const cle = e.target.cle.value.trim();
-  if (!/^https:\/\/.+\.supabase\.(co|in)$/.test(url) && !url.startsWith('http')) {
-    $('#err-config').textContent = "L'adresse doit ressembler à https://abcdefghijkl.supabase.co";
-    return;
-  }
-  try { localStorage.setItem('plateforme-supabase', JSON.stringify({ url, cle })); } catch { /* ignore */ }
-  location.reload();
-});
 
 $('#form-connexion').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -575,33 +544,33 @@ async function etatN8n() {
   $('#texte-n8n').textContent = dernier ? `n8n : dernier envoi ${ilYa(dernier)}` : 'n8n : aucun envoi reçu';
 }
 
-const avecMonProjet = (texte) => texte.replaceAll('https://TON-PROJET.supabase.co', reglages.url);
+const N8N = 'https://margauxbouriez2.app.n8n.cloud/workflow/';
+const WORKFLOWS = [
+  ['fvRljml7ypNKQbBS', 'Prospection – API', "Base de données et connexion de la plateforme. Reçoit les demandes de cette page et des autres workflows."],
+  ['COodJUCZHsntvzYD', "Recherche d'entreprises et emails", "Dès qu'une recherche est lancée, puis toutes les heures de 8 h à 20 h : annuaire officiel, site officiel, email publié."],
+  ['KRMOIrPEzUlkgFkz', 'Compléter les emails manquants', 'Toutes les heures de 8 h à 20 h : cherche le site et l\'email de 10 entreprises « À contacter » qui n\'en ont pas.'],
+  ['KzElpuJXPA1tCLpv', 'Envoi des emails et suivi des réponses', 'Du lundi au vendredi : premiers emails toutes les heures de 9 h à 17 h, relances à 10 h 30, 14 h 30 et 16 h 30, réponses Gmail notées chaque heure.'],
+];
 
 async function chargerN8n() {
-  $('#url-supabase').textContent = reglages.url;
-  const noeud = await fetch('n8n/noeud-email-envoye.json').then((r) => r.text());
-  $('#noeud-json').textContent = avecMonProjet(noeud);
+  $('#workflows-n8n').innerHTML = WORKFLOWS.map(([id, nom, texte]) => `<div class="carte etape-n8n">
+      <h2>${nom}</h2>
+      <p>${texte}</p>
+      <div><a class="btn petit" href="${N8N + id}" target="_blank" rel="noopener">Ouvrir dans n8n</a></div>
+    </div>`).join('');
   const points = [
-    ['enregistrer_email', "Après chaque email : ajoute l'entreprise si besoin, compte l'envoi, programme la relance."],
-    ['prospects_a_contacter', 'Liste des entreprises « À contacter » pour que n8n leur écrive (p_limit, p_secteur).'],
-    ['relances_du_jour', "Entreprises à relancer aujourd'hui (p_limit, p_max_emails)."],
-    ['importer_prospects', 'Ajoute ou met à jour une liste d\'entreprises (ex. depuis Google Sheets).'],
-    ['enregistrer_reponse', 'Quand une entreprise répond : passe son statut à « A répondu ».'],
-    ['recherche_suivante', "Prochaine recherche lancée depuis l'onglet Recherche (secteur, taille, zone)."],
-    ['ajouter_resultats_recherche', 'Ajoute les entreprises trouvées (sans doublon) et clôt la recherche.'],
+    ['prospects_a_contacter', 'Entreprises « À contacter » qui ont un email (pour le premier email).'],
+    ['relances_du_jour', "Entreprises à relancer aujourd'hui."],
+    ['enregistrer_email', "Après chaque email : compte l'envoi, passe le statut à « Contactée » puis « Relancée », programme la relance."],
+    ['enregistrer_reponse', 'Une entreprise a répondu : statut « A répondu » (ou « Pas intéressée » si elle écrit STOP).'],
+    ['recherche_suivante', "Prochaine recherche lancée depuis l'onglet Recherche."],
+    ['sirens_existants', 'Évite d\'ajouter deux fois la même entreprise (SIREN).'],
+    ['ajouter_resultats_recherche', 'Ajoute les entreprises trouvées et clôt la recherche.'],
+    ['prospects_sans_email', 'Entreprises sans email, pour les compléter.'],
+    ['completer_email', "Ajoute l'email trouvé sur le site officiel."],
   ];
   $('#points').innerHTML = points.map(([a, b]) => `<tr><td>n8n · ${a}</td><td>${b}</td></tr>`).join('');
 }
-
-$('#telecharger-recherche').onclick = enCas(async () => {
-  const wf = await fetch('n8n/workflow-recherche.json').then((r) => r.text());
-  telecharger(avecMonProjet(wf), 'workflow-recherche-entreprises.json', 'application/json');
-});
-
-$('#telecharger-workflow').onclick = enCas(async () => {
-  const wf = await fetch('n8n/workflow-demarchage.json').then((r) => r.text());
-  telecharger(avecMonProjet(wf), 'workflow-demarchage.json', 'application/json');
-});
 
 $$('[data-copier]').forEach((b) => b.addEventListener('click', async () => {
   try {
